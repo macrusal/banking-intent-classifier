@@ -1,85 +1,67 @@
+# ==============================
 # Python
+# ==============================
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-.Python
 *.egg-info/
-churn_prediction.egg-info/
-dist/
 build/
-.eggs/
+dist/
 
+# ==============================
 # Virtual environments
+# ==============================
 .venv/
 venv/
 env/
 
-# ML artifacts
-# models/*.joblib
-models/*.pt
-# models/*.pkl
-models/results.json
-mlruns/
-mlartifacts/
-mlflow.db
-
-# Data
-# data/raw/*.csv
-# data/raw/*.parquet
-# data/processed/
-
-# Jupyter
-.ipynb_checkpoints/
-notebooks/logs/
-
-# Environment
+# ==============================
+# Environment variables / secrets
+# ==============================
 .env
 .env.*
 !.env.example
-*.env
 
-# IDE
-.vscode/
+# ==============================
+# IDEs
+# ==============================
 .idea/
-*.swp
+.vscode/
 
-# OS
+# ==============================
+# Operating System
+# ==============================
 .DS_Store
 Thumbs.db
 
-# Tools
-.ruff_cache/
-.pytest_cache/
-.mypy_cache/
+# ==============================
+# Jupyter
+# ==============================
+.ipynb_checkpoints/
 
-# Coverage
+# ==============================
+# Tests / Code Quality
+# ==============================
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 
+# ==============================
+# Data
+# ==============================
+data/raw/
+data/processed/
+
+# ==============================
+# Trained models
+# ==============================
+models/*.pkl
+models/*.joblib
+models/*.onnx
+
+# ==============================
 # Logs
+# ==============================
+*.log
 logs/
-mlflow.db
-notebooks/logs/
-churn_prediction.egg-info/
-mlruns/
-
-# Claude
-CLAUDE.md
-.claude/
-
-# Monitoring data
-monitoring/grafana/data/
-monitoring/prometheus/data/
-
-# Terraform
-.terraform/
-**/.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
-tfplan
-crash.log
-*.tfvars
-*.tfvars.json
-!*.tfvars.example
