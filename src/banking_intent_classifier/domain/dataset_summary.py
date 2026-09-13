@@ -9,6 +9,10 @@ class SplitSummary:
 
     records: int
     classes: int
+    missing_texts: int
+    missing_labels: int
+    empty_texts: int
+    duplicated_records: int
 
 
 @dataclass(frozen=True)
@@ -18,3 +22,5 @@ class DatasetSummary:
     train: SplitSummary
     test: SplitSummary
     total_records: int
+    same_classes_in_splits: bool
+    overlapping_texts: int
