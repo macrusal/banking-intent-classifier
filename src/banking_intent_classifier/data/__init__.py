@@ -1,0 +1,1 @@
+"""Módulo responsável pelo carregamento e preparação dos dados."""
