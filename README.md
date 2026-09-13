@@ -16,7 +16,7 @@ O objetivo é construir uma solução de **classificação de textos utilizando 
 * monitoramento da aplicação e do modelo;
 * análise e otimização da latência de inferência.
 
-O projeto utilizará o dataset público **BANKING77**, que contém mensagens de clientes relacionadas a diferentes serviços bancários.
+O projeto utiliza o dataset público **BANKING77**, que contém mensagens de clientes relacionadas a diferentes serviços bancários.
 
 ---
 
@@ -48,29 +48,37 @@ A classificação poderá ser utilizada como base para o encaminhamento automát
 
 ## 📊 Dataset
 
-O projeto utilizará o **BANKING77**, dataset público destinado à classificação de intenções no domínio bancário.
+O projeto utiliza o **BANKING77**, dataset público destinado à classificação de intenções no domínio bancário.
+
+A fonte utilizada pelo projeto é o dataset oficial da **PolyAI**, disponibilizado através do Hugging Face.
 
 O dataset contém:
 
-* **13.083** consultas de clientes;
-* **77** categorias de intenção;
+* **13.083 registros**;
+* **10.003 registros de treinamento**;
+* **3.080 registros de teste**;
+* **77 categorias de intenção**;
 * textos em língua inglesa;
-* divisão oficial entre conjuntos de treinamento e teste;
-* estrutura adequada para problemas de classificação multiclasse.
+* estrutura adequada para classificação multiclasse.
 
-A estrutura básica utilizada pelo modelo é:
+A estrutura utilizada pelo modelo é:
 
 ```text
 text → label
 ```
 
-Exemplo:
+Exemplo de registro:
 
-```text
-"I am still waiting on my card?" → card_arrival
+```python
+{
+    "text": "I am still waiting on my card?",
+    "label": 11
+}
 ```
 
-Dataset:
+O carregamento é realizado programaticamente através da biblioteca `datasets`, sem necessidade de armazenar o dataset no repositório.
+
+Fonte:
 
 https://huggingface.co/datasets/PolyAI/banking77
 
@@ -99,11 +107,13 @@ A escolha busca estabelecer um modelo inicial leve, reproduzível e adequado par
 
 Outros algoritmos poderão ser avaliados durante a fase de experimentação.
 
+> A etapa de modelagem ainda não foi iniciada.
+
 ---
 
 ## 🏗️ Arquitetura Planejada
 
-A arquitetura será construída incrementalmente durante o desenvolvimento do Tech Challenge.
+A arquitetura está sendo construída incrementalmente durante o desenvolvimento do Tech Challenge.
 
 A visão inicial é:
 
@@ -134,9 +144,11 @@ A visão inicial é:
                                Grafana
 ```
 
-O pipeline de treinamento deverá posteriormente ser orquestrado utilizando **Apache Airflow**.
+A documentação da arquitetura inicial está disponível em:
 
-O processo de desenvolvimento também contará com um pipeline de **CI/CD utilizando GitHub Actions**.
+```text
+docs/architecture.md
+```
 
 ---
 
@@ -155,13 +167,13 @@ Serão avaliadas métricas como:
 * throughput;
 * tamanho do modelo.
 
-Os resultados serão documentados ao longo do desenvolvimento.
+Esta etapa será implementada após a validação do modelo baseline.
 
 ---
 
 ## 📈 Monitoramento
 
-A aplicação será instrumentada utilizando **Prometheus**, permitindo coletar métricas relacionadas à execução da API e do modelo.
+A aplicação será posteriormente instrumentada utilizando **Prometheus**.
 
 Entre as métricas inicialmente previstas estão:
 
@@ -176,9 +188,9 @@ As métricas serão visualizadas através de dashboards no **Grafana**.
 
 ## 🔄 Pipeline de Treinamento
 
-O processo de treinamento será automatizado utilizando **Apache Airflow**.
+O processo de treinamento será posteriormente automatizado utilizando **Apache Airflow**.
 
-A estrutura inicial prevista para a DAG é:
+A estrutura inicialmente planejada é:
 
 ```text
 Carregar Dataset
@@ -203,14 +215,18 @@ Essa estrutura poderá evoluir conforme as necessidades identificadas durante o 
 
 ---
 
-## 🔧 Tecnologias Planejadas
+## 🔧 Tecnologias
 
-As principais tecnologias previstas para o projeto são:
+### Atualmente utilizadas
 
-* Python
-* Scikit-Learn
-* Pandas
+* Python 3.12+
+* uv
 * Hugging Face Datasets
+* Pandas
+
+### Planejadas
+
+* Scikit-Learn
 * FastAPI
 * Docker
 * GitHub Actions
@@ -220,32 +236,69 @@ As principais tecnologias previstas para o projeto são:
 * ONNX
 * ONNX Runtime
 * Pytest
+* Ruff
 
-A inclusão das dependências será feita progressivamente conforme cada componente for implementado.
+As dependências serão adicionadas progressivamente conforme cada componente for implementado.
 
 ---
 
-## 📂 Estrutura do Projeto
+## 📂 Estrutura Atual do Projeto
 
-A estrutura inicial do projeto será mantida propositalmente simples e evoluirá junto com a implementação.
+A estrutura do projeto está sendo mantida propositalmente simples e evoluirá junto com a implementação.
 
 ```text
 banking-intent-classifier/
 │
 ├── README.md
-├── .gitignore
-├── LICENSE
 ├── pyproject.toml
+├── uv.lock
 │
 ├── docs/
 │   └── architecture.md
 │
 └── src/
     └── banking_intent_classifier/
-        └── __init__.py
+        ├── __init__.py
+        ├── main.py
+        │
+        └── data/
+            ├── __init__.py
+            └── loader.py
 ```
 
-Novos diretórios serão adicionados conforme os respectivos componentes forem desenvolvidos.
+Novos diretórios serão adicionados somente quando os respectivos componentes forem necessários.
+
+---
+
+## ▶️ Execução Local
+
+O projeto utiliza **uv** para gerenciamento do ambiente Python e das dependências.
+
+### Sincronizar o ambiente
+
+```bash
+uv sync
+```
+
+### Executar a aplicação
+
+```bash
+uv run python -m banking_intent_classifier.main
+```
+
+No estágio atual, a execução carrega o BANKING77 e apresenta informações básicas sobre o dataset.
+
+Exemplo:
+
+```text
+BANKING77
+----------------------------------------
+Registros de treino: 10003
+Registros de teste: 3080
+Total de registros: 13083
+Classes no treino: 77
+Classes no teste: 77
+```
 
 ---
 
@@ -253,13 +306,22 @@ Novos diretórios serão adicionados conforme os respectivos componentes forem d
 
 > 🚧 **Em desenvolvimento**
 
-O projeto será desenvolvido de maneira incremental, permitindo acompanhar através do histórico do Git a evolução desde a análise dos dados até a disponibilização e monitoramento do modelo.
+O desenvolvimento está sendo realizado de forma incremental, mantendo o histórico de commits como registro da evolução técnica do projeto.
+
+### Concluído
+
+* [x] Criar estrutura inicial do projeto
+* [x] Configurar projeto Python com `uv`
+* [x] Documentar arquitetura inicial
+* [x] Definir BANKING77 como dataset do projeto
+* [x] Implementar carregamento do BANKING77 através do Hugging Face
+* [x] Validar os splits de treino e teste
+* [x] Validar a presença das 77 classes nos dois splits
 
 ### Próximas etapas
 
-* [ ] Configurar estrutura inicial do projeto
-* [ ] Documentar arquitetura inicial
-* [ ] Implementar carregamento do BANKING77
+* [ ] Validar valores ausentes
+* [ ] Identificar registros duplicados
 * [ ] Realizar análise exploratória dos dados (EDA)
 * [ ] Implementar modelo baseline
 * [ ] Avaliar métricas do modelo
@@ -268,10 +330,37 @@ O projeto será desenvolvido de maneira incremental, permitindo acompanhar atrav
 * [ ] Configurar pipeline CI/CD
 * [ ] Implementar DAG de treinamento no Airflow
 * [ ] Instrumentar métricas com Prometheus
-* [ ] Criar dashboard no Grafana
+* [ ] Criar dashboards no Grafana
 * [ ] Converter e validar modelo ONNX
 * [ ] Realizar benchmark de latência
 * [ ] Consolidar documentação e resultados
+
+---
+
+## 🌿 Estratégia de Versionamento
+
+O desenvolvimento utiliza duas branches principais:
+
+```text
+main
+ │
+ └── dev
+```
+
+A branch `dev` concentra o desenvolvimento corrente.
+
+Quando um conjunto de funcionalidades atingir um estado estável e validado, as alterações poderão ser integradas à branch `main`.
+
+O projeto utiliza mensagens de commit seguindo o padrão **Conventional Commits**, mantendo as descrições em português.
+
+Exemplos:
+
+```text
+feat: adicionar carregamento do dataset BANKING77
+docs: atualizar documentação do projeto
+test: adicionar testes do carregamento de dados
+fix: corrigir validação dos dados
+```
 
 ---
 
@@ -279,7 +368,7 @@ O projeto será desenvolvido de maneira incremental, permitindo acompanhar atrav
 
 O projeto faz parte do **Tech Challenge — Fase 3** e tem como foco o deploy de modelos de Machine Learning em produção, contemplando CI/CD, orquestração, monitoramento e otimização de latência.
 
-O desenvolvimento será realizado de forma incremental, mantendo o histórico de commits como registro da evolução técnica do projeto.
+O desenvolvimento é realizado de forma incremental para que o histórico do repositório também registre a evolução das decisões e implementações realizadas durante o projeto.
 
 ---
 
