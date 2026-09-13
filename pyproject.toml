@@ -1,5 +1,11 @@
 [project]
 name = "banking-intent-classifier"
 version = "0.1.0"
+description = "Classificador de intenções bancárias utilizando NLP e o dataset BANKING77."
+readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+
+dependencies = [
+    "datasets",
+    "pandas",
+]
