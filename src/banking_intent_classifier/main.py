@@ -4,77 +4,31 @@ from banking_intent_classifier.application.dataset_service import DatasetService
 from banking_intent_classifier.infrastructure.data.banking77_loader import (
     load_banking77,
 )
-
-
-def print_split_summary(name: str, summary) -> None:
-    """Exibe o resumo de um split."""
-
-    print(f"\n{name}")
-    print("-" * 40)
-    print(f"Registros: {summary.records}")
-    print(f"Classes: {summary.classes}")
-    print(f"Textos ausentes: {summary.missing_texts}")
-    print(f"Labels ausentes: {summary.missing_labels}")
-    print(f"Textos vazios: {summary.empty_texts}")
-    print(f"Registros duplicados: {summary.duplicated_records}")
+from banking_intent_classifier.presentation.console_reporter import (
+    ConsoleReporter,
+)
 
 
 def main() -> None:
-    """Carrega e valida informações básicas do BANKING77."""
+    """Executa as análises do dataset BANKING77."""
 
     dataset = load_banking77()
 
     service = DatasetService()
+    reporter = ConsoleReporter()
+
     summary = service.summarize(dataset)
-
-    print("BANKING77")
-    print("=" * 40)
-    print(f"Total de registros: {summary.total_records}")
-    print(
-        "Mesmas classes em treino e teste: "
-        f"{summary.same_classes_in_splits}"
-    )
-
-    print_split_summary("TREINO", summary.train)
-    print_split_summary("TESTE", summary.test)
-
-    print(
-        "Textos presentes em treino e teste: "
-        f"{summary.overlapping_texts}"
-    )
+    reporter.print_dataset_summary(summary)
 
     distribution = service.class_distribution(dataset, "train")
     distribution_summary = service.summarize_class_distribution(distribution)
 
-    print("\nDISTRIBUIÇÃO DAS CLASSES — TREINO")
-    print("-" * 40)
+    reporter.print_class_distribution(distribution)
+    reporter.print_class_distribution_summary(distribution_summary)
 
-    for intent, count in distribution.items():
-        print(f"{intent}: {count}")
+    text_length_summary = service.summarize_text_length(dataset, "train")
+    reporter.print_text_length_summary(text_length_summary)
 
-    print("\nRESUMO DA DISTRIBUIÇÃO")
-    print("-" * 40)
-    print(f"Mínimo: {distribution_summary.minimum}")
-    print(f"Máximo: {distribution_summary.maximum}")
-    print(f"Média: {distribution_summary.mean:.2f}")
-    print(f"Mediana: {distribution_summary.median:.2f}")
-
-    text_summary = service.summarize_text_length(dataset, "train")
-
-    print("\nCOMPRIMENTO DOS TEXTOS — TREINO")
-    print("-" * 40)
-
-    print("Caracteres")
-    print(f"Mínimo: {text_summary.minimum_characters}")
-    print(f"Máximo: {text_summary.maximum_characters}")
-    print(f"Média: {text_summary.mean_characters:.2f}")
-    print(f"Mediana: {text_summary.median_characters:.2f}")
-
-    print("\nPalavras")
-    print(f"Mínimo: {text_summary.minimum_words}")
-    print(f"Máximo: {text_summary.maximum_words}")
-    print(f"Média: {text_summary.mean_words:.2f}")
-    print(f"Mediana: {text_summary.median_words:.2f}")
 
 if __name__ == "__main__":
     main()
