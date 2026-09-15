@@ -43,5 +43,21 @@ def main() -> None:
         f"{summary.overlapping_texts}"
     )
 
+    distribution = service.class_distribution(dataset, "train")
+    distribution_summary = service.summarize_class_distribution(distribution)
+
+    print("\nDISTRIBUIÇÃO DAS CLASSES — TREINO")
+    print("-" * 40)
+
+    for intent, count in distribution.items():
+        print(f" {intent}: {count}")
+
+    print("\nRESUMO DA DISTRIBUIÇÃO")
+    print("-" * 40)
+    print(f"Mínimo: {distribution_summary.minimum}")
+    print(f"Máximo: {distribution_summary.maximum}")
+    print(f"Média: {distribution_summary.mean:.2f}")
+    print(f"Mediana: {distribution_summary.median:.2f}")
+
 if __name__ == "__main__":
     main()

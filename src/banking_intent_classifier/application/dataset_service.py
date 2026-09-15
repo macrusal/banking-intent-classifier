@@ -1,8 +1,10 @@
 """Serviços de análise do dataset."""
 
 from datasets import Dataset, DatasetDict
+from statistics import mean, median
 
 from banking_intent_classifier.domain.dataset_summary import (
+    ClassDistributionSummary,
     DatasetSummary,
     SplitSummary,
 )
@@ -61,4 +63,31 @@ class DatasetService:
             missing_labels=int(missing_labels),
             empty_texts=int(empty_texts),
             duplicated_records=int(duplicated_records),
+        )
+
+    def class_distribution(self, dataset: DatasetDict, split: str) -> dict[int, int]:
+        """Calcula a distribuição das classes de um split do dataset."""
+
+        split_dataset = dataset[split]
+        labels = split_dataset["label"]
+        label_features = split_dataset.features["label"]
+
+        return {
+            label_features.int2str(label): labels.count(label)
+            for label in sorted(set(labels))
+        }
+
+    def summarize_class_distribution(
+            self,
+            distribution: dict[str, int],
+    ) -> ClassDistributionSummary:
+        """Calcula estatísticas da distribuição das classes."""
+
+        counts = list(distribution.values())
+
+        return ClassDistributionSummary(
+            minimum=min(counts),
+            maximum=max(counts),
+            mean=mean(counts),
+            median=median(counts),
         )
