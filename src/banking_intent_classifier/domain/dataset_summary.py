@@ -24,3 +24,12 @@ class DatasetSummary:
     total_records: int
     same_classes_in_splits: bool
     overlapping_texts: int
+
+@dataclass(frozen=True)
+class ClassDistributionSummary:
+    """Representa estatísticas da distribuição das classes."""
+
+    minimum: int
+    maximum: int
+    mean: float
+    median: float
