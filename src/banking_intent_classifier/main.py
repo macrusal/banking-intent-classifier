@@ -50,7 +50,7 @@ def main() -> None:
     print("-" * 40)
 
     for intent, count in distribution.items():
-        print(f" {intent}: {count}")
+        print(f"{intent}: {count}")
 
     print("\nRESUMO DA DISTRIBUIÇÃO")
     print("-" * 40)
@@ -58,6 +58,23 @@ def main() -> None:
     print(f"Máximo: {distribution_summary.maximum}")
     print(f"Média: {distribution_summary.mean:.2f}")
     print(f"Mediana: {distribution_summary.median:.2f}")
+
+    text_summary = service.summarize_text_length(dataset, "train")
+
+    print("\nCOMPRIMENTO DOS TEXTOS — TREINO")
+    print("-" * 40)
+
+    print("Caracteres")
+    print(f"Mínimo: {text_summary.minimum_characters}")
+    print(f"Máximo: {text_summary.maximum_characters}")
+    print(f"Média: {text_summary.mean_characters:.2f}")
+    print(f"Mediana: {text_summary.median_characters:.2f}")
+
+    print("\nPalavras")
+    print(f"Mínimo: {text_summary.minimum_words}")
+    print(f"Máximo: {text_summary.maximum_words}")
+    print(f"Média: {text_summary.mean_words:.2f}")
+    print(f"Mediana: {text_summary.median_words:.2f}")
 
 if __name__ == "__main__":
     main()

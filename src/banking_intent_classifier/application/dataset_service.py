@@ -7,6 +7,7 @@ from banking_intent_classifier.domain.dataset_summary import (
     ClassDistributionSummary,
     DatasetSummary,
     SplitSummary,
+    TextLengthSummary,
 )
 
 
@@ -65,7 +66,34 @@ class DatasetService:
             duplicated_records=int(duplicated_records),
         )
 
-    def class_distribution(self, dataset: DatasetDict, split: str) -> dict[int, int]:
+    def summarize_text_length(
+            self,
+            dataset: DatasetDict,
+            split: str,
+    ) -> TextLengthSummary:
+        """Calcula estatísticas de comprimento dos textos."""
+
+        texts = dataset[split]["text"]
+
+        character_lengths = [len(text) for text in texts]
+        word_lengths = [len(text.split()) for text in texts]
+
+        return TextLengthSummary(
+            minimum_characters=min(character_lengths),
+            maximum_characters=max(character_lengths),
+            mean_characters=mean(character_lengths),
+            median_characters=median(character_lengths),
+            minimum_words=min(word_lengths),
+            maximum_words=max(word_lengths),
+            mean_words=mean(word_lengths),
+            median_words=median(word_lengths),
+        )
+
+    def class_distribution(
+            self,
+            dataset: DatasetDict,
+            split: str,
+    ) -> dict[str, int]:
         """Calcula a distribuição das classes de um split do dataset."""
 
         split_dataset = dataset[split]
@@ -90,4 +118,27 @@ class DatasetService:
             maximum=max(counts),
             mean=mean(counts),
             median=median(counts),
+        )
+
+    def summarize_text_length(
+            self,
+            dataset: DatasetDict,
+            split: str,
+    ) -> TextLengthSummary:
+        """Calcula estatísticas de comprimento dos textos."""
+
+        texts = dataset[split]["text"]
+
+        character_lengths = [len(text) for text in texts]
+        word_lengths = [len(text.split()) for text in texts]
+
+        return TextLengthSummary(
+            minimum_characters=min(character_lengths),
+            maximum_characters=max(character_lengths),
+            mean_characters=mean(character_lengths),
+            median_characters=median(character_lengths),
+            minimum_words=min(word_lengths),
+            maximum_words=max(word_lengths),
+            mean_words=mean(word_lengths),
+            median_words=median(word_lengths),
         )

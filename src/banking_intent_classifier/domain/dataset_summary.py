@@ -25,6 +25,7 @@ class DatasetSummary:
     same_classes_in_splits: bool
     overlapping_texts: int
 
+
 @dataclass(frozen=True)
 class ClassDistributionSummary:
     """Representa estatísticas da distribuição das classes."""
@@ -33,3 +34,18 @@ class ClassDistributionSummary:
     maximum: int
     mean: float
     median: float
+
+
+@dataclass(frozen=True)
+class TextLengthSummary:
+    """Representa estatísticas de comprimento dos textos."""
+
+    minimum_characters: int
+    maximum_characters: int
+    mean_characters: float
+    median_characters: float
+
+    minimum_words: int
+    maximum_words: int
+    mean_words: float
+    median_words: float
