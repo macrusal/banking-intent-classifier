@@ -4,44 +4,31 @@ from banking_intent_classifier.application.dataset_service import DatasetService
 from banking_intent_classifier.infrastructure.data.banking77_loader import (
     load_banking77,
 )
-
-
-def print_split_summary(name: str, summary) -> None:
-    """Exibe o resumo de um split."""
-
-    print(f"\n{name}")
-    print("-" * 40)
-    print(f"Registros: {summary.records}")
-    print(f"Classes: {summary.classes}")
-    print(f"Textos ausentes: {summary.missing_texts}")
-    print(f"Labels ausentes: {summary.missing_labels}")
-    print(f"Textos vazios: {summary.empty_texts}")
-    print(f"Registros duplicados: {summary.duplicated_records}")
+from banking_intent_classifier.presentation.console_reporter import (
+    ConsoleReporter,
+)
 
 
 def main() -> None:
-    """Carrega e valida informações básicas do BANKING77."""
+    """Executa as análises do dataset BANKING77."""
 
     dataset = load_banking77()
 
     service = DatasetService()
+    reporter = ConsoleReporter()
+
     summary = service.summarize(dataset)
+    reporter.print_dataset_summary(summary)
 
-    print("BANKING77")
-    print("=" * 40)
-    print(f"Total de registros: {summary.total_records}")
-    print(
-        "Mesmas classes em treino e teste: "
-        f"{summary.same_classes_in_splits}"
-    )
+    distribution = service.class_distribution(dataset, "train")
+    distribution_summary = service.summarize_class_distribution(distribution)
 
-    print_split_summary("TREINO", summary.train)
-    print_split_summary("TESTE", summary.test)
+    reporter.print_class_distribution(distribution)
+    reporter.print_class_distribution_summary(distribution_summary)
 
-    print(
-        "Textos presentes em treino e teste: "
-        f"{summary.overlapping_texts}"
-    )
+    text_length_summary = service.summarize_text_length(dataset, "train")
+    reporter.print_text_length_summary(text_length_summary)
+
 
 if __name__ == "__main__":
     main()

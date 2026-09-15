@@ -1,0 +1,1 @@
+"""Componentes responsáveis pela apresentação dos resultados."""
