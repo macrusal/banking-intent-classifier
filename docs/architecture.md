@@ -1,4 +1,4 @@
-# Arquitetura Inicial
+# Arquitetura do Projeto
 
 ## 1. Objetivo
 
@@ -106,17 +106,19 @@ Exemplo:
 "I am still waiting on my card?" → card_arrival
 ```
 
-A etapa de dados deverá contemplar inicialmente:
+A etapa de dados contempla atualmente:
 
 * carregamento do dataset;
 * validação da estrutura;
 * identificação de valores ausentes;
 * identificação de registros duplicados;
+* verificação de sobreposição de textos entre treino e teste;
 * análise da distribuição das classes;
-* análise do tamanho dos textos;
-* preparação dos dados para treinamento.
+* análise do comprimento dos textos em caracteres e palavras.
 
-Essas atividades serão implementadas posteriormente durante a etapa de análise exploratória.
+As etapas de carregamento, validação estrutural, distribuição das classes e análise inicial do comprimento dos textos já foram implementadas.
+
+A análise exploratória continuará de forma incremental antes da preparação dos dados para treinamento.
 
 ---
 
@@ -412,34 +414,149 @@ Uma arquitetura de deploy em nuvem será detalhada posteriormente no projeto, ap
 
 ---
 
-## 14. Organização Inicial do Código
+## 14. Organização Atual do Código
 
-A estrutura inicial do projeto será mantida simples:
+A organização do código evoluiu juntamente com a implementação das primeiras etapas do projeto.
+
+A estrutura atual é:
 
 ```text
 banking-intent-classifier/
 │
 ├── README.md
-├── .gitignore
-├── LICENSE
-├── pyproject.toml
-│
 ├── docs/
 │   └── architecture.md
+├── pyproject.toml
+├── uv.lock
 │
 └── src/
     └── banking_intent_classifier/
-        └── __init__.py
+        ├── __init__.py
+        ├── application/
+        │   ├── __init__.py
+        │   └── dataset_service.py
+        ├── domain/
+        │   ├── __init__.py
+        │   └── dataset_summary.py
+        ├── infrastructure/
+        │   ├── __init__.py
+        │   └── data/
+        │       ├── __init__.py
+        │       └── banking77_loader.py
+        ├── presentation/
+        │   ├── __init__.py
+        │   └── console_reporter.py
+        └── main.py
 ```
 
-Novos diretórios serão adicionados somente quando os respectivos componentes forem implementados.
+Diretórios gerados automaticamente, como `__pycache__`, não fazem parte da arquitetura do projeto e não são representados acima.
 
-Exemplos futuros:
+### 14.1 Domain
+
+O pacote `domain` contém os objetos que representam os resultados das análises realizadas sobre o dataset.
+
+Atualmente, `dataset_summary.py` concentra estruturas como:
+
+* resumo dos splits;
+* resumo geral do dataset;
+* estatísticas da distribuição das classes;
+* estatísticas do comprimento dos textos.
+
+Esses objetos representam dados do domínio da análise e não possuem responsabilidade de carregamento ou apresentação.
+
+### 14.2 Application
+
+O pacote `application` contém os serviços responsáveis por executar as análises.
+
+O `DatasetService` concentra atualmente operações como:
+
+* geração do resumo estrutural do dataset;
+* análise dos splits;
+* identificação de textos compartilhados entre treino e teste;
+* cálculo da distribuição das classes;
+* cálculo das estatísticas da distribuição;
+* cálculo das estatísticas de comprimento dos textos.
+
+A camada de aplicação trabalha sobre os dados recebidos sem conhecer como eles serão apresentados ao usuário.
+
+### 14.3 Infrastructure
+
+O pacote `infrastructure` concentra integrações com recursos externos.
+
+Atualmente, `infrastructure/data/banking77_loader.py` é responsável pelo carregamento do BANKING77 através do Hugging Face.
+
+Essa separação evita que detalhes relacionados à origem do dataset sejam incorporados às regras de análise.
+
+### 14.4 Presentation
+
+O pacote `presentation` foi introduzido durante a evolução da EDA para separar a apresentação dos resultados da lógica de análise.
+
+O `ConsoleReporter` é responsável por:
+
+* apresentar o resumo estrutural do dataset;
+* apresentar informações dos splits;
+* apresentar a distribuição das classes;
+* apresentar o resumo estatístico da distribuição;
+* apresentar as estatísticas de comprimento dos textos.
+
+Com isso, chamadas de `print()` e detalhes de formatação deixam de ficar concentrados no ponto de entrada da aplicação.
+
+### 14.5 Main
+
+O `main.py` permanece como ponto de entrada da aplicação e tem como principal responsabilidade orquestrar o fluxo de execução.
+
+O fluxo atual pode ser representado como:
 
 ```text
-notebooks/
+main.py
+   │
+   ├── carrega BANKING77
+   │       │
+   │       ▼
+   │  infrastructure
+   │
+   ├── executa análises
+   │       │
+   │       ▼
+   │   application
+   │       │
+   │       ▼
+   │     domain
+   │
+   └── apresenta resultados
+           │
+           ▼
+      presentation
+```
+
+O `main.py` não deve concentrar regras de análise nem detalhes de formatação dos resultados.
+
+### 14.6 Princípios de design
+
+A evolução da estrutura busca aplicar princípios de design de forma incremental, especialmente o **Single Responsibility Principle (SRP)**.
+
+A divisão atual estabelece responsabilidades distintas:
+
+| Componente | Responsabilidade |
+| --- | --- |
+| `domain` | representar os resultados das análises |
+| `application` | executar as análises e regras da aplicação |
+| `infrastructure` | integrar e carregar fontes externas de dados |
+| `presentation` | formatar e apresentar os resultados |
+| `main.py` | orquestrar o fluxo da aplicação |
+
+A arquitetura continuará simples enquanto o projeto estiver nas etapas iniciais. Novas abstrações, interfaces ou componentes serão introduzidos somente quando houver necessidade concreta.
+
+Essa decisão evita complexidade prematura e permite que a arquitetura evolua juntamente com os requisitos do Tech Challenge.
+
+### 14.7 Evolução prevista da estrutura
+
+Novos diretórios poderão ser adicionados conforme os respectivos componentes forem efetivamente implementados.
+
+Exemplos previstos:
+
+```text
 tests/
-data/
 models/
 airflow/
 monitoring/
@@ -447,7 +564,7 @@ benchmarks/
 .github/workflows/
 ```
 
-Essa abordagem permite que a estrutura do repositório evolua juntamente com o desenvolvimento do projeto.
+A futura API de inferência também deverá reutilizar as regras existentes sem depender da apresentação em console. A separação atual permite que outros mecanismos de entrada e saída sejam adicionados posteriormente sem transferir essas responsabilidades para o `DatasetService`.
 
 ---
 
@@ -470,12 +587,23 @@ Alterações significativas deverão ser documentadas no próprio repositório, 
 
 ## 16. Próximos Passos
 
-Após a criação desta documentação, os próximos incrementos previstos são:
+As primeiras etapas de estruturação, carregamento e validação do BANKING77 já foram concluídas.
 
-1. criar o pacote Python inicial;
-2. implementar o carregamento do BANKING77;
-3. validar a estrutura do dataset;
-4. realizar a análise exploratória;
+A análise exploratória encontra-se em andamento e já contempla:
+
+1. validação estrutural do dataset;
+2. verificação de valores ausentes, textos vazios e duplicatas;
+3. verificação de sobreposição entre treino e teste;
+4. distribuição das 77 classes;
+5. estatísticas de balanceamento;
+6. análise inicial do comprimento dos textos em caracteres e palavras.
+
+Os próximos incrementos previstos são:
+
+1. continuar a análise exploratória do corpus;
+2. investigar a distribuição dos comprimentos e possíveis valores extremos;
+3. analisar características relevantes do vocabulário;
+4. consolidar as decisões iniciais de pré-processamento;
 5. implementar o baseline com TF-IDF e Logistic Regression;
 6. avaliar o desempenho inicial do modelo.
 
