@@ -352,3 +352,4 @@ Os resultados consolidados da EDA serão utilizados para orientar a estratégia 
 * [ ] Conversão e validação ONNX
 * [ ] Benchmark de latência
 * [ ] Documentação e resultados finais
+
