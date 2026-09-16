@@ -1,3 +1,162 @@
+# Banking Intent Classifier
+
+Projeto desenvolvido para o **Tech Challenge — Fase 3 da Pós-Tech FIAP em Machine Learning Engineering**.
+
+O projeto tem como objetivo desenvolver uma solução de Machine Learning capaz de identificar automaticamente a intenção presente em mensagens de clientes de serviços bancários, explorando técnicas de **Processamento de Linguagem Natural (NLP)** e práticas relacionadas ao ciclo de vida de modelos em produção.
+
+## 🎯 Contexto e problema
+
+Canais digitais de atendimento bancário recebem mensagens escritas de diferentes formas para representar necessidades semelhantes. Antes que uma solicitação possa ser direcionada para um fluxo de atendimento adequado, é necessário identificar qual intenção está associada à mensagem do cliente.
+
+Esse cenário pode ser tratado como um problema de **classificação multiclasse de textos**:
+
+```text
+Mensagem do cliente
+        │
+        ▼
+Classificador de intenção
+        │
+        ▼
+Intent identificada
+        │
+        ▼
+Fluxo de atendimento correspondente
+```
+
+O problema investigado pelo projeto é:
+
+> **Como classificar automaticamente mensagens de clientes de serviços bancários de acordo com sua intenção, utilizando técnicas de Processamento de Linguagem Natural e Machine Learning?**
+
+## 💡 Proposta de solução
+
+A proposta é construir progressivamente um classificador de intenções bancárias.
+
+A entrada do modelo será uma mensagem textual, por exemplo:
+
+```text
+I am still waiting on my card?
+```
+
+e a saída esperada será a intenção correspondente:
+
+```text
+card_arrival
+```
+
+Conceitualmente, a solução pode ser representada por:
+
+```text
+Texto
+  │
+  ▼
+Representação textual
+  │
+  ▼
+Modelo de classificação
+  │
+  ▼
+Intent
+```
+
+O desenvolvimento será realizado de forma incremental, começando pela compreensão e validação dos dados, passando pela construção de um modelo baseline e evoluindo posteriormente para disponibilização, automação, monitoramento e otimização da solução.
+
+A estratégia inicial de modelagem prevista é:
+
+```text
+Texto
+  │
+  ▼
+TF-IDF
+  │
+  ▼
+Logistic Regression
+  │
+  ▼
+Intent
+```
+
+Essa abordagem permitirá estabelecer um **baseline mensurável** antes da avaliação de estratégias adicionais.
+
+## 🏦 Por que o BANKING77?
+
+O **BANKING77** foi escolhido por representar diretamente um problema supervisionado de classificação textual no domínio bancário.
+
+Sua estrutura atende ao objetivo do projeto:
+
+```text
+text → label
+```
+
+O conjunto utilizado possui:
+
+- **13.083 mensagens**;
+- **10.003 registros de treinamento**;
+- **3.080 registros de teste**;
+- **77 classes de intenção**.
+
+Entre as intenções presentes no dataset estão, por exemplo:
+
+```text
+card_arrival
+card_not_working
+cash_withdrawal_charge
+declined_transfer
+pending_card_payment
+lost_or_stolen_card
+verify_my_identity
+wrong_exchange_rate_for_cash_withdrawal
+```
+
+A escolha também permite trabalhar com um cenário mais desafiador do que uma classificação binária simples. O modelo deverá distinguir **77 intenções**, incluindo categorias semanticamente próximas.
+
+Isso possibilita explorar aspectos relevantes de NLP e Machine Learning, como:
+
+- representação textual;
+- classificação multiclasse;
+- distribuição e balanceamento das classes;
+- avaliação global e por classe;
+- análise de erros;
+- capacidade de generalização para diferentes formas de expressar uma mesma intenção.
+
+## 🚀 Objetivo técnico
+
+Além da construção do classificador, o projeto busca percorrer progressivamente etapas relevantes do ciclo de vida de uma solução de Machine Learning:
+
+```text
+Dataset
+   │
+   ▼
+Validação e EDA
+   │
+   ▼
+Preparação dos textos
+   │
+   ▼
+Treinamento
+   │
+   ▼
+Avaliação
+   │
+   ▼
+API de inferência
+   │
+   ▼
+Containerização
+   │
+   ▼
+Automação
+   │
+   ▼
+Monitoramento
+   │
+   ▼
+Otimização
+```
+
+Dessa forma, o projeto não se limita ao treinamento de um modelo. A proposta é evoluir para uma solução organizada, reproduzível, avaliável e preparada para as demais etapas previstas no Tech Challenge.
+
+---
+
 ## 🚀 Status do Projeto
 
 > 🚧 **Em desenvolvimento**
@@ -193,3 +352,4 @@ Os resultados consolidados da EDA serão utilizados para orientar a estratégia 
 * [ ] Conversão e validação ONNX
 * [ ] Benchmark de latência
 * [ ] Documentação e resultados finais
+
