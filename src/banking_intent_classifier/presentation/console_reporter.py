@@ -5,6 +5,7 @@ from banking_intent_classifier.domain.dataset_summary import (
     DatasetSummary,
     SplitSummary,
     TextLengthSummary,
+    TextLengthDistributionSummary,
 )
 
 
@@ -91,3 +92,28 @@ class ConsoleReporter:
         print(f"Labels ausentes: {summary.missing_labels}")
         print(f"Textos vazios: {summary.empty_texts}")
         print(f"Registros duplicados: {summary.duplicated_records}")
+
+    def print_text_length_distribution(
+            self,
+            summary: TextLengthDistributionSummary,
+    ) -> None:
+        """Exibe os percentis do comprimento dos textos."""
+
+        print("\nDISTRIBUIÇÃO DO COMPRIMENTO DOS TEXTOS — TREINO")
+        print("-" * 40)
+
+        print("Caracteres")
+        print(f"P25: {summary.characters.p25:.2f}")
+        print(f"P50: {summary.characters.p50:.2f}")
+        print(f"P75: {summary.characters.p75:.2f}")
+        print(f"P90: {summary.characters.p90:.2f}")
+        print(f"P95: {summary.characters.p95:.2f}")
+        print(f"P99: {summary.characters.p99:.2f}")
+
+        print("\nPalavras")
+        print(f"P25: {summary.words.p25:.2f}")
+        print(f"P50: {summary.words.p50:.2f}")
+        print(f"P75: {summary.words.p75:.2f}")
+        print(f"P90: {summary.words.p90:.2f}")
+        print(f"P95: {summary.words.p95:.2f}")
+        print(f"P99: {summary.words.p99:.2f}")

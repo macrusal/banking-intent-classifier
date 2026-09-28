@@ -29,6 +29,12 @@ def main() -> None:
     text_length_summary = service.summarize_text_length(dataset, "train")
     reporter.print_text_length_summary(text_length_summary)
 
+    text_length_distribution = service.summarize_text_length_distribution(
+        dataset,
+        "train",
+    )
+    reporter.print_text_length_distribution(text_length_distribution)
 
+    
 if __name__ == "__main__":
     main()

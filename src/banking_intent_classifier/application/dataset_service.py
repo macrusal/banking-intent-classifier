@@ -1,13 +1,15 @@
 """Serviços de análise do dataset."""
 
 from datasets import Dataset, DatasetDict
-from statistics import mean, median
+from statistics import mean, median,  quantiles
 
 from banking_intent_classifier.domain.dataset_summary import (
     ClassDistributionSummary,
     DatasetSummary,
     SplitSummary,
     TextLengthSummary,
+    TextLengthDistributionSummary,
+    TextLengthPercentiles,
 )
 
 
@@ -141,4 +143,38 @@ class DatasetService:
             maximum_words=max(word_lengths),
             mean_words=mean(word_lengths),
             median_words=median(word_lengths),
+        )
+
+    def summarize_text_length_distribution(
+        self,
+        dataset: DatasetDict,
+        split: str,
+    ) -> TextLengthDistributionSummary:
+        """Calcula os percentis do comprimento dos textos."""
+
+        texts = dataset[split]["text"]
+
+        character_lengths = [len(text) for text in texts]
+        word_lengths = [len(text.split()) for text in texts]
+
+        return TextLengthDistributionSummary(
+            characters=self._calculate_percentiles(character_lengths),
+            words=self._calculate_percentiles(word_lengths),
+        )
+
+    @staticmethod
+    def _calculate_percentiles(
+            values: list[int],
+    ) -> TextLengthPercentiles:
+        """Calcula os principais percentis de uma distribuição."""
+
+        percentiles = quantiles(values, n=100)
+
+        return TextLengthPercentiles(
+            p25=percentiles[24],
+            p50=percentiles[49],
+            p75=percentiles[74],
+            p90=percentiles[89],
+            p95=percentiles[94],
+            p99=percentiles[98],
         )
