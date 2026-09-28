@@ -10,6 +10,8 @@ from banking_intent_classifier.domain.dataset_summary import (
     TextLengthSummary,
     TextLengthDistributionSummary,
     TextLengthPercentiles,
+    TextLengthOutlierSummary,
+    TextLengthOutliersSummary,
 )
 
 
@@ -177,4 +179,51 @@ class DatasetService:
             p90=percentiles[89],
             p95=percentiles[94],
             p99=percentiles[98],
+        )
+
+    def summarize_text_length_outliers(
+            self,
+            dataset: DatasetDict,
+            split: str,
+    ) -> TextLengthOutliersSummary:
+        """Identifica possíveis outliers no comprimento dos textos usando IQR."""
+
+        texts = dataset[split]["text"]
+
+        character_lengths = [len(text) for text in texts]
+        word_lengths = [len(text.split()) for text in texts]
+
+        return TextLengthOutliersSummary(
+            characters=self._calculate_outliers(character_lengths),
+            words=self._calculate_outliers(word_lengths),
+        )
+
+    @staticmethod
+    def _calculate_outliers(
+            values: list[int],
+    ) -> TextLengthOutlierSummary:
+        """Calcula possíveis outliers utilizando o intervalo interquartil."""
+
+        quartiles = quantiles(values, n=4)
+
+        q1 = quartiles[0]
+        q3 = quartiles[2]
+
+        iqr = q3 - q1
+
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+
+        outlier_count = sum(
+            value < lower_bound or value > upper_bound
+            for value in values
+        )
+
+        outlier_percentage = (outlier_count / len(values)) * 100
+
+        return TextLengthOutlierSummary(
+            lower_bound=lower_bound,
+            upper_bound=upper_bound,
+            outlier_count=outlier_count,
+            outlier_percentage=outlier_percentage,
         )

@@ -67,3 +67,19 @@ class TextLengthDistributionSummary:
 
     characters: TextLengthPercentiles
     words: TextLengthPercentiles
+
+@dataclass(frozen=True)
+class TextLengthOutlierSummary:
+    """Representa possíveis valores extremos no comprimento dos textos."""
+
+    lower_bound: float
+    upper_bound: float
+    outlier_count: int
+    outlier_percentage: float
+
+@dataclass(frozen=True)
+class TextLengthOutliersSummary:
+    """Representa possíveis outliers de comprimento dos textos."""
+
+    characters: TextLengthOutlierSummary
+    words: TextLengthOutlierSummary

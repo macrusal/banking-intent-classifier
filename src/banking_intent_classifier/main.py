@@ -35,6 +35,12 @@ def main() -> None:
     )
     reporter.print_text_length_distribution(text_length_distribution)
 
+    text_length_outliers = service.summarize_text_length_outliers(
+        dataset,
+        "train",
+    )
+    reporter.print_text_length_outliers(text_length_outliers)
+
     
 if __name__ == "__main__":
     main()
