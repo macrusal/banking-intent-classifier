@@ -310,9 +310,41 @@ Também foram analisados os comprimentos das mensagens presentes no conjunto de 
 
 Os resultados mostram que as mensagens do BANKING77 são, em geral, relativamente curtas.
 
-A média superior à mediana, tanto em caracteres quanto em palavras, indica a presença de textos mais longos que deslocam a distribuição para a direita.
+A média superior à mediana, tanto em caracteres quanto em palavras, indica uma distribuição assimétrica à direita, com a presença de mensagens mais longas na cauda da distribuição.
 
-Essas características serão consideradas posteriormente na definição das estratégias de representação textual e dos parâmetros utilizados durante a modelagem.
+#### ✅ Distribuição do comprimento dos textos
+
+Para compreender melhor essa distribuição, também foram calculados os principais percentis dos comprimentos das mensagens.
+
+| Percentil | Caracteres | Palavras |
+| --------- | ---------: | -------: |
+| P25       |      36,00 |     7,00 |
+| P50       |      47,00 |    10,00 |
+| P75       |      64,00 |    13,00 |
+| P90       |     110,00 |    22,00 |
+| P95       |     152,00 |    29,80 |
+| P99       |     221,96 |    43,00 |
+
+Os resultados mostram que **75% das mensagens possuem até 64 caracteres e 13 palavras**, enquanto **90% possuem até 110 caracteres e 22 palavras**.
+
+A diferença entre os percentis superiores e a mediana confirma a existência de uma cauda de mensagens mais longas no conjunto de treinamento.
+
+#### ✅ Análise de possíveis outliers
+
+Para identificar valores extremos na distribuição do comprimento dos textos, foi utilizado o critério do **Intervalo Interquartil (IQR)**.
+
+Os limites e resultados encontrados foram:
+
+| Medida | Limite inferior | Limite superior | Possíveis outliers | Percentual |
+| ------ | --------------: | --------------: | -----------------: | ---------: |
+| Caracteres | -6,00 | 106,00 | 1.038 | 10,38% |
+| Palavras | -2,00 | 22,00 | 930 | 9,30% |
+
+O critério IQR identificou uma cauda de mensagens mais longas, correspondendo a aproximadamente **10% do conjunto de treinamento**.
+
+Esses registros serão preservados, pois o comprimento elevado, isoladamente, **não caracteriza erro ou baixa qualidade textual**. Em um problema de classificação de intenções, mensagens mais detalhadas podem representar exemplos legítimos do comportamento esperado dos usuários.
+
+Dessa forma, nenhuma remoção será realizada nesta etapa da EDA. O impacto desses exemplos será reavaliado posteriormente durante a modelagem e a análise de desempenho do classificador.
 
 #### 🔄 Próximas análises
 
@@ -320,8 +352,6 @@ A EDA continuará investigando características relevantes do corpus antes da co
 
 Entre os próximos pontos de análise estão:
 
-* distribuição do comprimento dos textos;
-* identificação de possíveis valores extremos;
 * características gerais do vocabulário;
 * possíveis padrões relevantes para a etapa de modelagem;
 * definição das decisões iniciais de pré-processamento.
@@ -339,7 +369,8 @@ Os resultados consolidados da EDA serão utilizados para orientar a estratégia 
   * [x] Distribuição das classes
   * [x] Estatísticas de balanceamento
   * [x] Comprimento dos textos
-  * [ ] Distribuição dos comprimentos
+  * [x] Distribuição dos comprimentos
+  * [x] Análise de possíveis outliers
   * [ ] Características gerais do corpus
 * [ ] Implementação do modelo baseline
 * [ ] Avaliação das métricas do modelo
