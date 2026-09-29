@@ -29,6 +29,34 @@ def main() -> None:
     text_length_summary = service.summarize_text_length(dataset, "train")
     reporter.print_text_length_summary(text_length_summary)
 
+    text_length_distribution = service.summarize_text_length_distribution(
+        dataset,
+        "train",
+    )
+    reporter.print_text_length_distribution(text_length_distribution)
 
+    text_length_outliers = service.summarize_text_length_outliers(
+        dataset,
+        "train",
+    )
+    reporter.print_text_length_outliers(text_length_outliers)
+
+    corpus_summary = service.summarize_corpus(
+        dataset,
+        "train",
+    )
+
+    reporter.print_corpus_summary(corpus_summary)
+
+    most_frequent_tokens = service.most_frequent_tokens(
+        dataset,
+        "train",
+    )
+
+    reporter.print_most_frequent_tokens(
+        most_frequent_tokens,
+    )
+
+    
 if __name__ == "__main__":
     main()

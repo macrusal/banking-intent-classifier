@@ -4,7 +4,11 @@ from banking_intent_classifier.domain.dataset_summary import (
     ClassDistributionSummary,
     DatasetSummary,
     SplitSummary,
+    TextLengthDistributionSummary,
+    TextLengthOutliersSummary,
     TextLengthSummary,
+    CorpusSummary,
+    TokenFrequency,
 )
 
 
@@ -91,3 +95,81 @@ class ConsoleReporter:
         print(f"Labels ausentes: {summary.missing_labels}")
         print(f"Textos vazios: {summary.empty_texts}")
         print(f"Registros duplicados: {summary.duplicated_records}")
+
+    def print_text_length_distribution(
+            self,
+            summary: TextLengthDistributionSummary,
+    ) -> None:
+        """Exibe os percentis do comprimento dos textos."""
+
+        print("\nDISTRIBUIÇÃO DO COMPRIMENTO DOS TEXTOS — TREINO")
+        print("-" * 40)
+
+        print("Caracteres")
+        print(f"P25: {summary.characters.p25:.2f}")
+        print(f"P50: {summary.characters.p50:.2f}")
+        print(f"P75: {summary.characters.p75:.2f}")
+        print(f"P90: {summary.characters.p90:.2f}")
+        print(f"P95: {summary.characters.p95:.2f}")
+        print(f"P99: {summary.characters.p99:.2f}")
+
+        print("\nPalavras")
+        print(f"P25: {summary.words.p25:.2f}")
+        print(f"P50: {summary.words.p50:.2f}")
+        print(f"P75: {summary.words.p75:.2f}")
+        print(f"P90: {summary.words.p90:.2f}")
+        print(f"P95: {summary.words.p95:.2f}")
+        print(f"P99: {summary.words.p99:.2f}")
+
+    def print_text_length_outliers(
+            self,
+            summary: TextLengthOutliersSummary,
+    ) -> None:
+        """Exibe possíveis outliers no comprimento dos textos."""
+
+        print("\nPOSSÍVEIS OUTLIERS NO COMPRIMENTO DOS TEXTOS — TREINO")
+        print("-" * 40)
+
+        print("Caracteres")
+        print(f"Limite inferior: {summary.characters.lower_bound:.2f}")
+        print(f"Limite superior: {summary.characters.upper_bound:.2f}")
+        print(f"Outliers: {summary.characters.outlier_count}")
+        print(
+            "Percentual: "
+            f"{summary.characters.outlier_percentage:.2f}%"
+        )
+
+        print("\nPalavras")
+        print(f"Limite inferior: {summary.words.lower_bound:.2f}")
+        print(f"Limite superior: {summary.words.upper_bound:.2f}")
+        print(f"Outliers: {summary.words.outlier_count}")
+        print(
+            "Percentual: "
+            f"{summary.words.outlier_percentage:.2f}%"
+        )
+
+    def print_corpus_summary(
+            self,
+            summary: CorpusSummary,
+    ) -> None:
+        """Exibe características gerais do corpus textual."""
+
+        print("\nCARACTERÍSTICAS GERAIS DO CORPUS — TREINO")
+        print("-" * 40)
+        print(f"Documentos: {summary.total_documents}")
+        print(f"Total de palavras: {summary.total_words}")
+        print(f"Palavras únicas: {summary.unique_words}")
+        print(f"Palavras únicas após lowercase: "f"{summary.unique_words_lowercase}")
+        print(f"Palavras únicas após lowercase + remoção de pontuação: "f"{summary.unique_words_normalized}")
+
+    def print_most_frequent_tokens(
+            self,
+            tokens: list[TokenFrequency],
+    ) -> None:
+        """Exibe os tokens mais frequentes do corpus."""
+
+        print("\nTOKENS MAIS FREQUENTES — TREINO")
+        print("-" * 40)
+
+        for token in tokens:
+            print(f"{token.token}: {token.frequency}")
