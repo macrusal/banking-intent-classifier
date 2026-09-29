@@ -346,17 +346,77 @@ Esses registros serão preservados, pois o comprimento elevado, isoladamente, **
 
 Dessa forma, nenhuma remoção será realizada nesta etapa da EDA. O impacto desses exemplos será reavaliado posteriormente durante a modelagem e a análise de desempenho do classificador.
 
+#### ✅ Características gerais do corpus
+
+Também foram analisadas características gerais do corpus textual do conjunto de treinamento.
+
+Os resultados encontrados foram:
+
+| Métrica | Resultado |
+| --- | ---: |
+| Documentos | 10.003 |
+| Total de palavras | 119.530 |
+| Palavras únicas — corpus bruto | 4.518 |
+| Palavras únicas após lowercase | 4.136 |
+| Palavras únicas após lowercase + tratamento de pontuação | 2.452 |
+
+A conversão dos tokens para **lowercase** reduziu o vocabulário de 4.518 para 4.136 tokens únicos, uma redução de aproximadamente **8,46%**.
+
+Ao considerar também o tratamento de caracteres de pontuação nas extremidades dos tokens produzidos pela separação por espaços, o vocabulário foi reduzido para 2.452 tokens únicos. Isso representa uma redução de aproximadamente **45,73% em relação ao vocabulário bruto**.
+
+Esses resultados indicam que diferenças de capitalização e pontuação contribuem significativamente para a fragmentação do vocabulário. Por esse motivo, essas transformações serão consideradas na definição do pré-processamento utilizado na etapa de representação textual.
+
+##### Tokens mais frequentes
+
+Após a aplicação de lowercase e do tratamento de pontuação utilizado nesta análise exploratória, os 20 tokens mais frequentes no conjunto de treinamento foram:
+
+| Token | Frequência | Token | Frequência |
+| --- | ---: | --- | ---: |
+| `i` | 8.312 | `my` | 5.684 |
+| `to` | 4.038 | `a` | 3.565 |
+| `the` | 3.498 | `card` | 2.672 |
+| `is` | 2.376 | `it` | 1.849 |
+| `do` | 1.848 | `can` | 1.842 |
+| `for` | 1.581 | `how` | 1.520 |
+| `what` | 1.375 | `why` | 1.365 |
+| `account` | 1.348 | `you` | 1.216 |
+| `and` | 1.215 | `money` | 1.130 |
+| `was` | 1.090 | `transfer` | 1.081 |
+
+Entre os tokens mais frequentes aparecem tanto palavras funcionais da língua inglesa, como `i`, `my`, `to`, `a` e `the`, quanto termos diretamente relacionados ao domínio bancário, como `card`, `account`, `money` e `transfer`.
+
+A presença de palavras funcionais entre os termos mais frequentes não implica, neste momento, sua remoção automática. A utilização de **stopwords** será tratada como uma hipótese experimental durante a construção do baseline, permitindo comparar configurações e avaliar seu impacto por meio das métricas do modelo.
+
+##### Decisões preliminares para o pré-processamento
+
+A análise do corpus fornece evidências para considerar:
+
+* normalização para lowercase;
+* tratamento de pontuação;
+* avaliação experimental da remoção de stopwords.
+
+Essas decisões ainda não alteram o dataset original. Elas serão avaliadas durante a construção da representação textual e do modelo baseline.
+
 #### 🔄 Próximas análises
 
-A EDA continuará investigando características relevantes do corpus antes da construção do primeiro modelo baseline.
+Com as características gerais do corpus analisadas, a próxima etapa será consolidar as decisões de pré-processamento e iniciar a representação textual utilizada pelo modelo baseline.
 
-Entre os próximos pontos de análise estão:
+A estratégia inicial permanece:
 
-* características gerais do vocabulário;
-* possíveis padrões relevantes para a etapa de modelagem;
-* definição das decisões iniciais de pré-processamento.
+```text
+Texto
+  │
+  ▼
+TF-IDF
+  │
+  ▼
+Logistic Regression
+  │
+  ▼
+Intent
+```
 
-Os resultados consolidados da EDA serão utilizados para orientar a estratégia de representação textual, os parâmetros iniciais do modelo e o protocolo de avaliação.
+As configurações de pré-processamento serão avaliadas experimentalmente para que as decisões sejam orientadas pelos resultados do modelo, especialmente pelas métricas adequadas à classificação multiclasse.
 
 ### 📋 Roadmap
 
@@ -371,7 +431,8 @@ Os resultados consolidados da EDA serão utilizados para orientar a estratégia 
   * [x] Comprimento dos textos
   * [x] Distribuição dos comprimentos
   * [x] Análise de possíveis outliers
-  * [ ] Características gerais do corpus
+  * [x] Características gerais do corpus
+  * [ ] Definição e avaliação do pré-processamento textual
 * [ ] Implementação do modelo baseline
 * [ ] Avaliação das métricas do modelo
 * [ ] API de inferência
