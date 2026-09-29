@@ -83,3 +83,20 @@ class TextLengthOutliersSummary:
 
     characters: TextLengthOutlierSummary
     words: TextLengthOutlierSummary
+
+@dataclass(frozen=True)
+class CorpusSummary:
+    """Representa características gerais do corpus textual."""
+
+    total_documents: int
+    total_words: int
+    unique_words: int
+    unique_words_lowercase: int
+    unique_words_normalized: int
+
+@dataclass(frozen=True)
+class TokenFrequency:
+    """Representa a frequência de um token no corpus."""
+
+    token: str
+    frequency: int

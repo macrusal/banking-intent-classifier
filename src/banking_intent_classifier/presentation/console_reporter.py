@@ -7,6 +7,8 @@ from banking_intent_classifier.domain.dataset_summary import (
     TextLengthDistributionSummary,
     TextLengthOutliersSummary,
     TextLengthSummary,
+    CorpusSummary,
+    TokenFrequency,
 )
 
 
@@ -145,3 +147,29 @@ class ConsoleReporter:
             "Percentual: "
             f"{summary.words.outlier_percentage:.2f}%"
         )
+
+    def print_corpus_summary(
+            self,
+            summary: CorpusSummary,
+    ) -> None:
+        """Exibe características gerais do corpus textual."""
+
+        print("\nCARACTERÍSTICAS GERAIS DO CORPUS — TREINO")
+        print("-" * 40)
+        print(f"Documentos: {summary.total_documents}")
+        print(f"Total de palavras: {summary.total_words}")
+        print(f"Palavras únicas: {summary.unique_words}")
+        print(f"Palavras únicas após lowercase: "f"{summary.unique_words_lowercase}")
+        print(f"Palavras únicas após lowercase + remoção de pontuação: "f"{summary.unique_words_normalized}")
+
+    def print_most_frequent_tokens(
+            self,
+            tokens: list[TokenFrequency],
+    ) -> None:
+        """Exibe os tokens mais frequentes do corpus."""
+
+        print("\nTOKENS MAIS FREQUENTES — TREINO")
+        print("-" * 40)
+
+        for token in tokens:
+            print(f"{token.token}: {token.frequency}")
