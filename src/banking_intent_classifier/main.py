@@ -13,7 +13,9 @@ from banking_intent_classifier.presentation.console_reporter import (
 from banking_intent_classifier.application.text_length_analyzer import (
     TextLengthAnalyzer,
 )
-
+from banking_intent_classifier.application.corpus_analyzer import (
+    CorpusAnalyzer,
+)
 
 def main() -> None:
     """Executa as análises do dataset BANKING77."""
@@ -23,6 +25,7 @@ def main() -> None:
     service = DatasetService()
     class_distribution_analyzer = ClassDistributionAnalyzer()
     text_length_analyzer = TextLengthAnalyzer()
+    corpus_analyzer = CorpusAnalyzer()
     reporter = ConsoleReporter()
 
     summary = service.summarize(dataset)
@@ -57,13 +60,13 @@ def main() -> None:
     )
     reporter.print_text_length_outliers(text_length_outliers)
 
-    corpus_summary = service.summarize_corpus(
+    corpus_summary = corpus_analyzer.summarize(
         dataset,
         "train",
     )
     reporter.print_corpus_summary(corpus_summary)
 
-    most_frequent_tokens = service.most_frequent_tokens(
+    most_frequent_tokens = corpus_analyzer.most_frequent_tokens(
         dataset,
         "train",
     )
