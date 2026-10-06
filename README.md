@@ -198,14 +198,21 @@ formatação de saída.
 
 A arquitetura do projeto é documentada em [`docs/architecture.md`](docs/architecture.md).
 
-Esse documento concentra as decisões arquiteturais e a evolução da organização interna do projeto, enquanto este README apresenta uma visão resumida do estado atual da implementação.
+Esse documento concentra as decisões arquiteturais e a evolução da organização
+interna do projeto, enquanto este README apresenta uma visão resumida do estado
+atual da implementação.
 
-A estrutura atual separa as responsabilidades entre:
+A estrutura está sendo evoluída incrementalmente para manter responsabilidades
+bem definidas e evitar que um único serviço concentre diferentes tipos de análise.
+
+A organização atual inclui:
 
 ```text
 src/banking_intent_classifier/
 ├── application/
-│   └── dataset_service.py
+│   ├── class_distribution_analyzer.py
+│   ├── dataset_service.py
+│   └── text_length_analyzer.py
 ├── domain/
 │   └── dataset_summary.py
 ├── infrastructure/
@@ -214,19 +221,6 @@ src/banking_intent_classifier/
 ├── presentation/
 │   └── console_reporter.py
 └── main.py
-```
-
-As responsabilidades principais são:
-
-- `domain`: representa os objetos e resultados das análises;
-- `application`: executa as análises e regras da aplicação;
-- `infrastructure`: integra e carrega fontes externas de dados;
-- `presentation`: formata e apresenta os resultados;
-- `main.py`: atua como ponto de entrada e orquestra o fluxo da aplicação.
-
-A criação da camada `presentation` permite retirar do `main.py` a responsabilidade de formatar e imprimir os resultados. A saída para o terminal fica concentrada no `ConsoleReporter`, enquanto o ponto de entrada permanece responsável pela coordenação dos componentes.
-
-Essa separação busca manter responsabilidades bem definidas e aplicar de forma incremental princípios como o **Single Responsibility Principle (SRP)**, evitando abstrações desnecessárias para o estágio atual do projeto.
 
 ### ✅ Dataset e carregamento
 

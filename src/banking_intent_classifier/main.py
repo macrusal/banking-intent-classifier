@@ -10,6 +10,9 @@ from banking_intent_classifier.infrastructure.data.banking77_loader import (
 from banking_intent_classifier.presentation.console_reporter import (
     ConsoleReporter,
 )
+from banking_intent_classifier.application.text_length_analyzer import (
+    TextLengthAnalyzer,
+)
 
 
 def main() -> None:
@@ -19,6 +22,7 @@ def main() -> None:
 
     service = DatasetService()
     class_distribution_analyzer = ClassDistributionAnalyzer()
+    text_length_analyzer = TextLengthAnalyzer()
     reporter = ConsoleReporter()
 
     summary = service.summarize(dataset)
@@ -35,19 +39,19 @@ def main() -> None:
     reporter.print_class_distribution(distribution)
     reporter.print_class_distribution_summary(distribution_summary)
 
-    text_length_summary = service.summarize_text_length(
+    text_length_summary = text_length_analyzer.summarize(
         dataset,
         "train",
     )
     reporter.print_text_length_summary(text_length_summary)
 
-    text_length_distribution = service.summarize_text_length_distribution(
+    text_length_distribution = text_length_analyzer.summarize_distribution(
         dataset,
         "train",
     )
     reporter.print_text_length_distribution(text_length_distribution)
 
-    text_length_outliers = service.summarize_text_length_outliers(
+    text_length_outliers = text_length_analyzer.summarize_outliers(
         dataset,
         "train",
     )
