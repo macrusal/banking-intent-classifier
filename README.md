@@ -178,7 +178,7 @@ O desenvolvimento está sendo realizado de forma incremental, mantendo o histór
 
 A estrutura do projeto está sendo evoluída de forma incremental, buscando manter
 responsabilidades bem definidas e aplicar princípios de design como o
-Single Responsibility Principle (SRP).
+**Single Responsibility Principle (SRP)**.
 
 Atualmente, as principais responsabilidades estão organizadas da seguinte forma:
 
@@ -190,22 +190,44 @@ Atualmente, as principais responsabilidades estão organizadas da seguinte forma
 | `presentation` | Formatação e apresentação dos resultados |
 | `main.py` | Orquestração do fluxo da aplicação |
 
-A apresentação dos resultados no terminal foi isolada no `ConsoleReporter`,
+Dentro da camada `application`, as responsabilidades da EDA também foram
+separadas para evitar que um único serviço concentre diferentes tipos de análise:
+
+| Componente | Responsabilidade |
+| --- | --- |
+| `DatasetService` | Análise estrutural e qualidade básica do dataset |
+| `ClassDistributionAnalyzer` | Distribuição das classes e estatísticas de balanceamento |
+| `TextLengthAnalyzer` | Comprimento dos textos, percentis e identificação de possíveis outliers |
+| `CorpusAnalyzer` | Características do corpus e frequência dos tokens |
+
+A apresentação dos resultados no terminal permanece isolada no `ConsoleReporter`,
 evitando que o ponto de entrada da aplicação concentre regras de análise e
 formatação de saída.
+
+Essa organização permite que cada componente tenha uma responsabilidade mais
+coesa e possa evoluir de forma independente à medida que novas etapas forem
+incorporadas ao projeto.
 
 ### 📐 Documentação da arquitetura
 
 A arquitetura do projeto é documentada em [`docs/architecture.md`](docs/architecture.md).
 
-Esse documento concentra as decisões arquiteturais e a evolução da organização interna do projeto, enquanto este README apresenta uma visão resumida do estado atual da implementação.
+Esse documento concentra as decisões arquiteturais e a evolução da organização
+interna do projeto, enquanto este README apresenta uma visão resumida do estado
+atual da implementação.
 
-A estrutura atual separa as responsabilidades entre:
+A estrutura foi evoluída incrementalmente para manter responsabilidades bem
+definidas e evitar que um único serviço concentre diferentes tipos de análise.
+
+A organização atual inclui:
 
 ```text
 src/banking_intent_classifier/
 ├── application/
-│   └── dataset_service.py
+│   ├── class_distribution_analyzer.py
+│   ├── corpus_analyzer.py
+│   ├── dataset_service.py
+│   └── text_length_analyzer.py
 ├── domain/
 │   └── dataset_summary.py
 ├── infrastructure/
@@ -216,17 +238,13 @@ src/banking_intent_classifier/
 └── main.py
 ```
 
-As responsabilidades principais são:
+A separação das análises de distribuição de classes, comprimento dos textos e
+características do corpus foi realizada como uma refatoração estrutural, mantendo
+o comportamento previamente validado da aplicação.
 
-- `domain`: representa os objetos e resultados das análises;
-- `application`: executa as análises e regras da aplicação;
-- `infrastructure`: integra e carrega fontes externas de dados;
-- `presentation`: formata e apresenta os resultados;
-- `main.py`: atua como ponto de entrada e orquestra o fluxo da aplicação.
-
-A criação da camada `presentation` permite retirar do `main.py` a responsabilidade de formatar e imprimir os resultados. A saída para o terminal fica concentrada no `ConsoleReporter`, enquanto o ponto de entrada permanece responsável pela coordenação dos componentes.
-
-Essa separação busca manter responsabilidades bem definidas e aplicar de forma incremental princípios como o **Single Responsibility Principle (SRP)**, evitando abstrações desnecessárias para o estágio atual do projeto.
+Os testes automatizados foram utilizados como rede de segurança durante essa
+evolução, permitindo extrair as responsabilidades progressivamente e verificar
+que os resultados da EDA permaneceram inalterados.
 
 ### ✅ Dataset e carregamento
 
@@ -425,7 +443,6 @@ As configurações de pré-processamento serão avaliadas experimentalmente para
 * [x] Carregamento do BANKING77
 * [x] Validação estrutural do dataset
 * [ ] Análise exploratória dos dados (EDA)
-
   * [x] Distribuição das classes
   * [x] Estatísticas de balanceamento
   * [x] Comprimento dos textos
@@ -433,6 +450,11 @@ As configurações de pré-processamento serão avaliadas experimentalmente para
   * [x] Análise de possíveis outliers
   * [x] Características gerais do corpus
   * [ ] Definição e avaliação do pré-processamento textual
+* [x] Refatoração das responsabilidades da EDA
+  * [x] Extrair análise da distribuição de classes
+  * [x] Extrair análise do comprimento dos textos
+  * [x] Extrair análise do corpus
+  * [x] Adicionar testes automatizados para os analyzers
 * [ ] Implementação do modelo baseline
 * [ ] Avaliação das métricas do modelo
 * [ ] API de inferência
@@ -444,4 +466,3 @@ As configurações de pré-processamento serão avaliadas experimentalmente para
 * [ ] Conversão e validação ONNX
 * [ ] Benchmark de latência
 * [ ] Documentação e resultados finais
-
