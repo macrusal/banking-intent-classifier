@@ -4,6 +4,14 @@ Projeto desenvolvido para o **Tech Challenge — Fase 3 da Pós-Tech FIAP em Mac
 
 O projeto tem como objetivo desenvolver uma solução de Machine Learning capaz de identificar automaticamente a intenção presente em mensagens de clientes de serviços bancários, explorando técnicas de **Processamento de Linguagem Natural (NLP)** e práticas relacionadas ao ciclo de vida de modelos em produção.
 
+## 👥 Equipe
+
+| Nome | RM | E-mail | Papel |
+| :--- | :---: | :--- | :--- |
+| **Marcelo da Cruz Salvador** | **RM375166** | [macrusal@gmail.com](mailto:macrusal@gmail.com) | Software Engineering · Dados · Machine Learning Engineering |
+
+---
+
 ## 🎯 Contexto e problema
 
 Canais digitais de atendimento bancário recebem mensagens escritas de diferentes formas para representar necessidades semelhantes. Antes que uma solicitação possa ser direcionada para um fluxo de atendimento adequado, é necessário identificar qual intenção está associada à mensagem do cliente.
@@ -159,7 +167,7 @@ Dessa forma, o projeto não se limita ao treinamento de um modelo. A proposta é
 
 ## 🚀 Status do Projeto
 
-> 🚧 **Em desenvolvimento**
+> 🚧 **Em desenvolvimento — EDA concluída e baseline experimental validado**
 
 O desenvolvimento está sendo realizado de forma incremental, mantendo o histórico de commits e Pull Requests como registro da evolução técnica e das decisões realizadas durante o projeto.
 
@@ -199,6 +207,10 @@ separadas para evitar que um único serviço concentre diferentes tipos de anál
 | `ClassDistributionAnalyzer` | Distribuição das classes e estatísticas de balanceamento |
 | `TextLengthAnalyzer` | Comprimento dos textos, percentis e identificação de possíveis outliers |
 | `CorpusAnalyzer` | Características do corpus e frequência dos tokens |
+| `DatasetSplitter` | Split interno estratificado e reprodutível para treino e validação |
+| `TextPreprocessingExperiment` | Execução e comparação dos experimentos de pré-processamento textual |
+| `ModelTrainer` | Criação e treinamento do classificador Logistic Regression |
+| `ModelEvaluator` | Cálculo de Accuracy, Macro F1 e Weighted F1 |
 
 A apresentação dos resultados no terminal permanece isolada no `ConsoleReporter`,
 evitando que o ponto de entrada da aplicação concentre regras de análise e
@@ -227,9 +239,14 @@ src/banking_intent_classifier/
 │   ├── class_distribution_analyzer.py
 │   ├── corpus_analyzer.py
 │   ├── dataset_service.py
-│   └── text_length_analyzer.py
+│   ├── dataset_splitter.py
+│   ├── model_evaluator.py
+│   ├── model_trainer.py
+│   ├── text_length_analyzer.py
+│   └── text_preprocessing_experiment.py
 ├── domain/
-│   └── dataset_summary.py
+│   ├── dataset_summary.py
+│   └── experiment_result.py
 ├── infrastructure/
 │   └── data/
 │       └── banking77_loader.py
@@ -403,38 +420,57 @@ Após a aplicação de lowercase e do tratamento de pontuação utilizado nesta 
 
 Entre os tokens mais frequentes aparecem tanto palavras funcionais da língua inglesa, como `i`, `my`, `to`, `a` e `the`, quanto termos diretamente relacionados ao domínio bancário, como `card`, `account`, `money` e `transfer`.
 
-A presença de palavras funcionais entre os termos mais frequentes não implica, neste momento, sua remoção automática. A utilização de **stopwords** será tratada como uma hipótese experimental durante a construção do baseline, permitindo comparar configurações e avaliar seu impacto por meio das métricas do modelo.
+A presença de palavras funcionais entre os termos mais frequentes não implica sua remoção automática. A utilização de **stopwords** foi tratada como uma hipótese experimental durante a construção do primeiro baseline, permitindo comparar configurações e avaliar seu impacto por meio das métricas do modelo.
 
-##### Decisões preliminares para o pré-processamento
+##### ✅ Decisão de pré-processamento baseada em experimento
 
-A análise do corpus fornece evidências para considerar:
+A hipótese de remoção de stopwords foi avaliada de forma controlada utilizando **TF-IDF + Logistic Regression**. Para evitar o uso do conjunto oficial de teste durante decisões de configuração, o conjunto de treinamento foi dividido de forma estratificada e reprodutível (`random_state=42`):
 
-* normalização para lowercase;
-* tratamento de pontuação;
-* avaliação experimental da remoção de stopwords.
+| Conjunto experimental | Registros | Classes |
+| --- | ---: | ---: |
+| Treino interno | 8.002 | 77 |
+| Validação | 2.001 | 77 |
 
-Essas decisões ainda não alteram o dataset original. Elas serão avaliadas durante a construção da representação textual e do modelo baseline.
+O TF-IDF é ajustado exclusivamente sobre o treino interno e aplicado posteriormente à validação. O conjunto oficial de teste, com **3.080 registros**, permanece preservado para a avaliação final.
 
-#### 🔄 Próximas análises
+Foram comparadas duas configurações:
 
-Com as características gerais do corpus analisadas, a próxima etapa será consolidar as decisões de pré-processamento e iniciar a representação textual utilizada pelo modelo baseline.
+| Configuração | Accuracy | Macro F1 | Weighted F1 |
+| --- | ---: | ---: | ---: |
+| `stop_words=None` | **0,8491** | **0,8412** | **0,8482** |
+| `stop_words="english"` | 0,8206 | 0,8137 | 0,8198 |
 
-A estratégia inicial permanece:
+Nas condições deste experimento, a remoção de stopwords reduziu o **Macro F1 em aproximadamente 2,75 pontos percentuais**. Por isso, a configuração escolhida para o baseline é:
 
 ```text
-Texto
-  │
-  ▼
-TF-IDF
-  │
-  ▼
-Logistic Regression
-  │
-  ▼
-Intent
+stop_words=None
 ```
 
-As configurações de pré-processamento serão avaliadas experimentalmente para que as decisões sejam orientadas pelos resultados do modelo, especialmente pelas métricas adequadas à classificação multiclasse.
+Essa decisão é específica às condições avaliadas e não representa uma regra geral para problemas de classificação textual.
+
+#### ✅ Checkpoint atual
+
+A etapa de EDA está concluída e o primeiro baseline experimental foi reproduzido com sucesso. A suíte automatizada atual possui **17 testes**, todos aprovados.
+
+```text
+BANKING77
+   │
+   ├── Validação estrutural          ✅
+   ├── Qualidade dos dados           ✅
+   ├── Distribuição das 77 classes   ✅
+   ├── Comprimento dos textos        ✅
+   ├── Possíveis outliers / IQR      ✅
+   ├── Corpus e vocabulário          ✅
+   ├── Tokens frequentes             ✅
+   ├── Leakage / overlap exato       ✅
+   ├── Split estratificado           ✅
+   └── Experimento de stopwords      ✅
+              │
+              ├── None     Macro F1 = 0,8412
+              └── English  Macro F1 = 0,8137
+```
+
+O próximo passo é evoluir do experimento para o **baseline formal de modelagem**, mantendo o conjunto oficial de teste preservado até a definição da configuração a ser avaliada.
 
 ### 📋 Roadmap
 
@@ -442,21 +478,26 @@ As configurações de pré-processamento serão avaliadas experimentalmente para
 * [x] Arquitetura inicial
 * [x] Carregamento do BANKING77
 * [x] Validação estrutural do dataset
-* [ ] Análise exploratória dos dados (EDA)
+* [x] Análise exploratória dos dados (EDA)
   * [x] Distribuição das classes
   * [x] Estatísticas de balanceamento
   * [x] Comprimento dos textos
   * [x] Distribuição dos comprimentos
   * [x] Análise de possíveis outliers
   * [x] Características gerais do corpus
-  * [ ] Definição e avaliação do pré-processamento textual
+  * [x] Definição e avaliação experimental do pré-processamento textual
 * [x] Refatoração das responsabilidades da EDA
   * [x] Extrair análise da distribuição de classes
   * [x] Extrair análise do comprimento dos textos
   * [x] Extrair análise do corpus
   * [x] Adicionar testes automatizados para os analyzers
-* [ ] Implementação do modelo baseline
-* [ ] Avaliação das métricas do modelo
+* [x] Primeiro baseline experimental com TF-IDF + Logistic Regression
+  * [x] Criar split interno estratificado e reprodutível
+  * [x] Comparar `stop_words=None` e `stop_words="english"`
+  * [x] Avaliar Accuracy, Macro F1 e Weighted F1
+  * [x] Selecionar `stop_words=None` com base nos resultados
+* [ ] Consolidar baseline formal de modelagem
+* [ ] Avaliação final e detalhada das métricas do modelo
 * [ ] API de inferência
 * [ ] Containerização
 * [ ] Pipeline CI/CD
