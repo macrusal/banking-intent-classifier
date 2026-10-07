@@ -1,6 +1,6 @@
 # Banking Intent Classifier
 
-Projeto desenvolvido para o **Tech Challenge --- Fase 3 da Pós-Tech FIAP
+Projeto desenvolvido para o **Tech Challenge — Fase 3 da Pós-Tech FIAP
 em Machine Learning Engineering**.
 
 O projeto tem como objetivo desenvolver uma solução de Machine Learning
@@ -10,11 +10,10 @@ de Linguagem Natural (NLP)** e práticas relacionadas ao ciclo de vida de
 modelos em produção.
 
 ## 👥 Equipe
+
 | Nome | RM | E-mail | Papel |
 | :--- | :---: | :--- | :--- |
 | **Marcelo da Cruz Salvador** | **RM375166** | [macrusal@gmail.com](mailto:macrusal@gmail.com) | Software Engineering · Dados · Machine Learning Engineering |
-
-------------------------------------------------------------------------
 
 ## 🚀 Setup rápido
 
@@ -24,7 +23,7 @@ Para reproduzir o estado atual do projeto é necessário ter instalado:
 
 -   **Git**
 -   **uv**
--   **Python \>= 3.12**
+-   **Python >= 3.12**
 
 O projeto utiliza o **uv** para gerenciamento do ambiente Python e das
 dependências. As dependências estão declaradas no `pyproject.toml` e as
@@ -38,20 +37,20 @@ versões resolvidas são mantidas no `uv.lock`.
 
 ### Clonar o repositório
 
-``` bash
+```bash
 git clone https://github.com/macrusal/banking-intent-classifier.git
 cd banking-intent-classifier
 ```
 
 ### Sincronizar o ambiente
 
-``` bash
+```bash
 uv sync
 ```
 
 Saída observada no ambiente validado:
 
-``` text
+```text
 Resolved 55 packages
 Checked 53 packages
 ```
@@ -60,7 +59,7 @@ Os tempos exibidos pelo `uv` podem variar entre ambientes.
 
 ### Validar o ambiente
 
-``` bash
+```bash
 uv --version
 uv run python --version
 uv run pytest --version
@@ -68,7 +67,7 @@ uv run pytest --version
 
 Versões observadas:
 
-``` text
+```text
 uv 0.12.13
 Python 3.14.5
 pytest 9.1.1
@@ -78,8 +77,7 @@ pytest 9.1.1
 > reprodução. Os comandos do projeto devem ser executados por meio de
 > `uv run`.
 
-------------------------------------------------------------------------
-
+---
 ## 🔁 Reprodutibilidade
 
 Uma afirmação quantitativa apresentada neste README deve estar
@@ -88,35 +86,29 @@ reproduzi-la.
 
 ### Catálogo de comandos
 
-  ---------------------------------------------------------------------------------------
-  Objetivo                            Comando
-  ----------------------------------- ---------------------------------------------------
-  Sincronizar ambiente e dependências `uv sync`
-
-  Verificar o Python do ambiente      `uv run python --version`
-
-  Executar EDA e validações do        `uv run python -m banking_intent_classifier.main`
-  BANKING77                           
-
-  Executar a suíte automatizada       `uv run pytest`
-  ---------------------------------------------------------------------------------------
+| Objetivo | Comando |
+| :--- | :--- |
+| Sincronizar ambiente e dependências | `uv sync` |
+| Verificar o Python do ambiente | `uv run python --version` |
+| Executar EDA e validações do BANKING77 | `uv run python -m banking_intent_classifier.main` |
+| Executar a suíte automatizada | `uv run pytest` |
 
 ### Reproduzir a EDA e as validações
 
-``` bash
+```bash
 uv run python -m banking_intent_classifier.main
 ```
 
 Resultados estruturais esperados:
 
-``` text
+```text
 BANKING77
 ========================================
 Total de registros: 13083
 Mesmas classes em treino e teste: True
 
 TREINO
-----------------------------------------
+---
 Registros: 10003
 Classes: 77
 Textos ausentes: 0
@@ -125,7 +117,7 @@ Textos vazios: 0
 Registros duplicados: 0
 
 TESTE
-----------------------------------------
+---
 Registros: 3080
 Classes: 77
 Textos ausentes: 0
@@ -139,21 +131,21 @@ A mesma execução apresenta distribuição das classes, comprimentos,
 percentis, possíveis outliers por IQR, características do corpus e
 tokens mais frequentes.
 
-  Análise                                                  Resultado esperado
-  ------------------------------------------------------ --------------------
-  Registros totais                                                     13.083
-  Treino oficial                                                       10.003
-  Teste oficial                                                         3.080
-  Classes                                                                  77
-  Textos compartilhados entre treino e teste                                0
-  Frequência mínima por classe                                             35
-  Frequência máxima por classe                                            187
-  Média por classe                                                     129,91
-  Mediana por classe                                                      127
-  Total de palavras no treino                                         119.530
-  Vocabulário bruto                                                     4.518
-  Vocabulário após lowercase                                            4.136
-  Vocabulário após lowercase + tratamento de pontuação                  2.452
+| Análise | Resultado esperado |
+| :--- | ---: |
+| Registros totais | 13.083 |
+| Treino oficial | 10.003 |
+| Teste oficial | 3.080 |
+| Classes | 77 |
+| Textos compartilhados entre treino e teste | 0 |
+| Frequência mínima por classe | 35 |
+| Frequência máxima por classe | 187 |
+| Média por classe | 129,91 |
+| Mediana por classe | 127 |
+| Total de palavras no treino | 119.530 |
+| Vocabulário bruto | 4.518 |
+| Vocabulário após lowercase | 4.136 |
+| Vocabulário após lowercase + tratamento de pontuação | 2.452 |
 
 > O Hugging Face Hub pode exibir um aviso sobre requisições sem
 > `HF_TOKEN`. O aviso não impede a execução; autenticação é necessária
@@ -162,13 +154,13 @@ tokens mais frequentes.
 
 ### Reproduzir os testes automatizados
 
-``` bash
+```bash
 uv run pytest
 ```
 
 No checkpoint documentado:
 
-``` text
+```text
 17 passed
 ```
 
@@ -189,8 +181,7 @@ inexistente ou hipotético.
 A criação dessa entrada operacional será tratada antes da consolidação
 do baseline formal. O conjunto oficial de teste permanece preservado.
 
-------------------------------------------------------------------------
-
+---
 ## 🎯 Contexto e problema
 
 Canais digitais de atendimento bancário recebem mensagens escritas de
@@ -202,7 +193,7 @@ mensagem do cliente.
 Esse cenário pode ser tratado como um problema de **classificação
 multiclasse de textos**:
 
-``` text
+```text
 Mensagem do cliente
         │
         ▼
@@ -228,19 +219,19 @@ bancárias.
 
 A entrada do modelo será uma mensagem textual, por exemplo:
 
-``` text
+```text
 I am still waiting on my card?
 ```
 
 e a saída esperada será a intenção correspondente:
 
-``` text
+```text
 card_arrival
 ```
 
 Conceitualmente, a solução pode ser representada por:
 
-``` text
+```text
 Texto
   │
   ▼
@@ -260,7 +251,7 @@ monitoramento e otimização da solução.
 
 A estratégia inicial de modelagem prevista é:
 
-``` text
+```text
 Texto
   │
   ▼
@@ -283,7 +274,7 @@ supervisionado de classificação textual no domínio bancário.
 
 Sua estrutura atende ao objetivo do projeto:
 
-``` text
+```text
 text → label
 ```
 
@@ -296,7 +287,7 @@ O conjunto utilizado possui:
 
 Entre as intenções presentes no dataset estão, por exemplo:
 
-``` text
+```text
 card_arrival
 card_not_working
 cash_withdrawal_charge
@@ -328,7 +319,7 @@ Além da construção do classificador, o projeto busca percorrer
 progressivamente etapas relevantes do ciclo de vida de uma solução de
 Machine Learning:
 
-``` text
+```text
 Dataset
    │
    ▼
@@ -363,11 +354,10 @@ Dessa forma, o projeto não se limita ao treinamento de um modelo. A
 proposta é evoluir para uma solução organizada, reproduzível, avaliável
 e preparada para as demais etapas previstas no Tech Challenge.
 
-------------------------------------------------------------------------
-
+---
 ## 🚀 Status do Projeto
 
-> 🚧 **Em desenvolvimento --- EDA concluída e baseline experimental
+> 🚧 **Em desenvolvimento — EDA concluída e baseline experimental
 > validado**
 
 O desenvolvimento está sendo realizado de forma incremental, mantendo o
@@ -396,57 +386,28 @@ design como o **Single Responsibility Principle (SRP)**.
 Atualmente, as principais responsabilidades estão organizadas da
 seguinte forma:
 
-  -----------------------------------------------------------------------
-  Componente                          Responsabilidade
-  ----------------------------------- -----------------------------------
-  `domain`                            Representação dos objetos e
-                                      resultados das análises
-
-  `application`                       Execução das análises e regras da
-                                      aplicação
-
-  `infrastructure`                    Integração e carregamento de fontes
-                                      externas de dados
-
-  `presentation`                      Formatação e apresentação dos
-                                      resultados
-
-  `main.py`                           Orquestração do fluxo da aplicação
-  -----------------------------------------------------------------------
+| Componente | Responsabilidade |
+| :--- | :--- |
+| `domain` | Representação dos objetos e resultados das análises |
+| `application` | Execução das análises e regras da aplicação |
+| `infrastructure` | Integração e carregamento de fontes externas de dados |
+| `presentation` | Formatação e apresentação dos resultados |
+| `main.py` | Orquestração do fluxo da aplicação |
 
 Dentro da camada `application`, as responsabilidades da EDA também foram
 separadas para evitar que um único serviço concentre diferentes tipos de
 análise:
 
-  -----------------------------------------------------------------------
-  Componente                          Responsabilidade
-  ----------------------------------- -----------------------------------
-  `DatasetService`                    Análise estrutural e qualidade
-                                      básica do dataset
-
-  `ClassDistributionAnalyzer`         Distribuição das classes e
-                                      estatísticas de balanceamento
-
-  `TextLengthAnalyzer`                Comprimento dos textos, percentis e
-                                      identificação de possíveis outliers
-
-  `CorpusAnalyzer`                    Características do corpus e
-                                      frequência dos tokens
-
-  `DatasetSplitter`                   Split interno estratificado e
-                                      reprodutível para treino e
-                                      validação
-
-  `TextPreprocessingExperiment`       Execução e comparação dos
-                                      experimentos de pré-processamento
-                                      textual
-
-  `ModelTrainer`                      Criação e treinamento do
-                                      classificador Logistic Regression
-
-  `ModelEvaluator`                    Cálculo de Accuracy, Macro F1 e
-                                      Weighted F1
-  -----------------------------------------------------------------------
+| Componente | Responsabilidade |
+| :--- | :--- |
+| `DatasetService` | Análise estrutural e qualidade básica do dataset |
+| `ClassDistributionAnalyzer` | Distribuição das classes e estatísticas de balanceamento |
+| `TextLengthAnalyzer` | Comprimento dos textos, percentis e identificação de possíveis outliers |
+| `CorpusAnalyzer` | Características do corpus e frequência dos tokens |
+| `DatasetSplitter` | Split interno estratificado e reprodutível para treino e validação |
+| `TextPreprocessingExperiment` | Execução e comparação dos experimentos de pré-processamento textual |
+| `ModelTrainer` | Criação e treinamento do classificador Logistic Regression |
+| `ModelEvaluator` | Cálculo de Accuracy, Macro F1 e Weighted F1 |
 
 A apresentação dos resultados no terminal permanece isolada no
 `ConsoleReporter`, evitando que o ponto de entrada da aplicação
@@ -471,7 +432,7 @@ de análise.
 
 A organização atual inclui:
 
-``` text
+```text
 src/banking_intent_classifier/
 ├── application/
 │   ├── class_distribution_analyzer.py
@@ -515,19 +476,19 @@ e verificar que os resultados da EDA permaneceram inalterados.
 A validação inicial do BANKING77 foi concluída com os seguintes
 resultados:
 
-  Validação                Treino   Teste
-  ---------------------- -------- -------
-  Registros                10.003   3.080
-  Classes                      77      77
-  Textos ausentes               0       0
-  Labels ausentes               0       0
-  Textos vazios                 0       0
-  Registros duplicados          0       0
+| Validação | Treino | Teste |
+| :--- | ---: | ---: |
+| Registros | 10.003 | 3.080 |
+| Classes | 77 | 77 |
+| Textos ausentes | 0 | 0 |
+| Labels ausentes | 0 | 0 |
+| Textos vazios | 0 | 0 |
+| Registros duplicados | 0 | 0 |
 
 Também foi verificada a existência de textos compartilhados entre os
 conjuntos de treino e teste:
 
-``` text
+```text
 Textos presentes em treino e teste: 0
 ```
 
@@ -538,7 +499,7 @@ A ausência de textos compartilhados entre os splits também reduz o risco
 de data leakage decorrente da presença da mesma mensagem nos conjuntos
 de treino e teste.
 
-### 🔄 Análise Exploratória dos Dados --- EDA
+### 🔄 Análise Exploratória dos Dados — EDA
 
 Com a validação estrutural concluída, foi iniciada a **Análise
 Exploratória dos Dados (EDA)** do BANKING77.
@@ -554,12 +515,12 @@ O conjunto de treinamento possui **10.003 registros distribuídos entre
 
 As frequências observadas apresentam as seguintes estatísticas:
 
-  Métrica     Exemplos por classe
-  --------- ---------------------
-  Mínimo                       35
-  Máximo                      187
-  Média                    129,91
-  Mediana                     127
+| Métrica | Exemplos por classe |
+| :--- | ---: |
+| Mínimo | 35 |
+| Máximo | 187 |
+| Média | 129,91 |
+| Mediana | 127 |
 
 Entre as classes com menor quantidade de exemplos estão:
 
@@ -591,12 +552,12 @@ Também foram analisados os comprimentos das mensagens presentes no
 conjunto de treinamento, considerando tanto a quantidade de caracteres
 quanto a quantidade de palavras.
 
-  Métrica     Caracteres   Palavras
-  --------- ------------ ----------
-  Mínimo              13          2
-  Máximo             433         79
-  Média            59,47      11,95
-  Mediana             47         10
+| Métrica | Caracteres | Palavras |
+| :--- | ---: | ---: |
+| Mínimo | 13 | 2 |
+| Máximo | 433 | 79 |
+| Média | 59,47 | 11,95 |
+| Mediana | 47 | 10 |
 
 Os resultados mostram que as mensagens do BANKING77 são, em geral,
 relativamente curtas.
@@ -610,14 +571,14 @@ mensagens mais longas na cauda da distribuição.
 Para compreender melhor essa distribuição, também foram calculados os
 principais percentis dos comprimentos das mensagens.
 
-  Percentil     Caracteres   Palavras
-  ----------- ------------ ----------
-  P25                36,00       7,00
-  P50                47,00      10,00
-  P75                64,00      13,00
-  P90               110,00      22,00
-  P95               152,00      29,80
-  P99               221,96      43,00
+| Percentil | Caracteres | Palavras |
+| :--- | ---: | ---: |
+| P25 | 36,00 | 7,00 |
+| P50 | 47,00 | 10,00 |
+| P75 | 64,00 | 13,00 |
+| P90 | 110,00 | 22,00 |
+| P95 | 152,00 | 29,80 |
+| P99 | 221,96 | 43,00 |
 
 Os resultados mostram que **75% das mensagens possuem até 64 caracteres
 e 13 palavras**, enquanto **90% possuem até 110 caracteres e 22
@@ -634,13 +595,10 @@ textos, foi utilizado o critério do **Intervalo Interquartil (IQR)**.
 
 Os limites e resultados encontrados foram:
 
-  -------------------------------------------------------------------------------
-  Medida        Limite inferior  Limite superior  Possíveis outliers   Percentual
-  ------------ ---------------- ---------------- ------------------- ------------
-  Caracteres              -6,00           106,00               1.038       10,38%
-
-  Palavras                -2,00            22,00                 930        9,30%
-  -------------------------------------------------------------------------------
+| Medida | Limite inferior | Limite superior | Possíveis outliers | Percentual |
+| :--- | ---: | ---: | ---: | ---: |
+| Caracteres | -6,00 | 106,00 | 1.038 | 10,38% |
+| Palavras | -2,00 | 22,00 | 930 | 9,30% |
 
 O critério IQR identificou uma cauda de mensagens mais longas,
 correspondendo a aproximadamente **10% do conjunto de treinamento**.
@@ -661,13 +619,13 @@ conjunto de treinamento.
 
 Os resultados encontrados foram:
 
-  Métrica                                                      Resultado
-  ---------------------------------------------------------- -----------
-  Documentos                                                      10.003
-  Total de palavras                                              119.530
-  Palavras únicas --- corpus bruto                                 4.518
-  Palavras únicas após lowercase                                   4.136
-  Palavras únicas após lowercase + tratamento de pontuação         2.452
+| Métrica | Resultado |
+| :--- | ---: |
+| Documentos | 10.003 |
+| Total de palavras | 119.530 |
+| Palavras únicas — corpus bruto | 4.518 |
+| Palavras únicas após lowercase | 4.136 |
+| Palavras únicas após lowercase + tratamento de pontuação | 2.452 |
 
 A conversão dos tokens para **lowercase** reduziu o vocabulário de 4.518
 para 4.136 tokens únicos, uma redução de aproximadamente **8,46%**.
@@ -688,18 +646,18 @@ Após a aplicação de lowercase e do tratamento de pontuação utilizado
 nesta análise exploratória, os 20 tokens mais frequentes no conjunto de
 treinamento foram:
 
-  Token         Frequência Token          Frequência
-  ----------- ------------ ------------ ------------
-  `i`                8.312 `my`                5.684
-  `to`               4.038 `a`                 3.565
-  `the`              3.498 `card`              2.672
-  `is`               2.376 `it`                1.849
-  `do`               1.848 `can`               1.842
-  `for`              1.581 `how`               1.520
-  `what`             1.375 `why`               1.365
-  `account`          1.348 `you`               1.216
-  `and`              1.215 `money`             1.130
-  `was`              1.090 `transfer`          1.081
+| Token | Frequência | Token | Frequência |
+| :--- | ---: | :--- | ---: |
+| `i` | 8.312 | `my` | 5.684 |
+| `to` | 4.038 | `a` | 3.565 |
+| `the` | 3.498 | `card` | 2.672 |
+| `is` | 2.376 | `it` | 1.849 |
+| `do` | 1.848 | `can` | 1.842 |
+| `for` | 1.581 | `how` | 1.520 |
+| `what` | 1.375 | `why` | 1.365 |
+| `account` | 1.348 | `you` | 1.216 |
+| `and` | 1.215 | `money` | 1.130 |
+| `was` | 1.090 | `transfer` | 1.081 |
 
 Entre os tokens mais frequentes aparecem tanto palavras funcionais da
 língua inglesa, como `i`, `my`, `to`, `a` e `the`, quanto termos
@@ -720,10 +678,10 @@ conjunto oficial de teste durante decisões de configuração, o conjunto
 de treinamento foi dividido de forma estratificada e reprodutível
 (`random_state=42`):
 
-  Conjunto experimental     Registros   Classes
-  ----------------------- ----------- ---------
-  Treino interno                8.002        77
-  Validação                     2.001        77
+| Conjunto experimental | Registros | Classes |
+| :--- | ---: | ---: |
+| Treino interno | 8.002 | 77 |
+| Validação | 2.001 | 77 |
 
 O TF-IDF é ajustado exclusivamente sobre o treino interno e aplicado
 posteriormente à validação. O conjunto oficial de teste, com **3.080
@@ -731,16 +689,16 @@ registros**, permanece preservado para a avaliação final.
 
 Foram comparadas duas configurações:
 
-  Configuração                 Accuracy     Macro F1   Weighted F1
-  ------------------------ ------------ ------------ -------------
-  `stop_words=None`          **0,8491**   **0,8412**    **0,8482**
-  `stop_words="english"`         0,8206       0,8137        0,8198
+| Configuração | Accuracy | Macro F1 | Weighted F1 |
+| :--- | ---: | ---: | ---: |
+| `stop_words=None` | **0,8491** | **0,8412** | **0,8482** |
+| `stop_words="english"` | 0,8206 | 0,8137 | 0,8198 |
 
 Nas condições deste experimento, a remoção de stopwords reduziu o
 **Macro F1 em aproximadamente 2,75 pontos percentuais**. Por isso, a
 configuração escolhida para o baseline é:
 
-``` text
+```text
 stop_words=None
 ```
 
@@ -753,7 +711,7 @@ A etapa de EDA está concluída e o primeiro baseline experimental foi
 reproduzido com sucesso. A suíte automatizada atual possui **17
 testes**, todos aprovados.
 
-``` text
+```text
 BANKING77
    │
    ├── Validação estrutural          ✅
