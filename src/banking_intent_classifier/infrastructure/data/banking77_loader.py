@@ -17,7 +17,7 @@ EXPECTED_SPLITS = {
 }
 
 def load_banking77() -> DatasetDict:
-    """"
+    """
     Carrega o dataset BANKING77 a partir do Hugging Face Hub.
 
     Returns:
@@ -43,7 +43,7 @@ def validate_dataset(dataset: DatasetDict)-> None:
         dataset: Dataset carregado pelo Hugging Face.
 
      Raises:
-        ValueError: Caso splits ou colunas obrigatórias esttjam ausentes.
+        ValueError: Caso splits ou colunas obrigatórias estejam ausentes.
     """
     missing_splits = EXPECTED_SPLITS - set(dataset.keys())
     missing_columns = EXPECTED_COLUMNS - set(dataset["train"].column_names)
