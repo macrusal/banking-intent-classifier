@@ -218,3 +218,41 @@ pipeline final
 
 Essa abordagem evita adicionar complexidade ao pré-processamento sem evidência
 de benefício para o modelo.
+
+## Resultado do experimento
+
+A hipótese sobre remoção de stopwords foi avaliada utilizando o conjunto
+`train` do BANKING77 dividido de forma estratificada e reproduzível em:
+
+- treino interno: 8.002 registros;
+- validação: 2.001 registros;
+- 77 classes presentes em ambos os conjuntos;
+- `random_state=42`.
+
+O conjunto oficial `test` não foi utilizado durante essa decisão.
+
+Foram comparadas duas configurações, mantendo as demais condições do
+experimento constantes:
+
+| Configuração | Accuracy | Macro F1 | Weighted F1 |
+|---|---:|---:|---:|
+| `stop_words=None` | 0.8491 | 0.8412 | 0.8482 |
+| `stop_words="english"` | 0.8206 | 0.8137 | 0.8198 |
+
+A remoção das stopwords produziu uma redução de:
+
+- Accuracy: 0.0285;
+- Macro F1: 0.0275;
+- Weighted F1: 0.0284.
+
+No critério principal do experimento, Macro F1, o resultado caiu de
+84,12% para 81,37%, uma diferença de 2,75 pontos percentuais.
+
+## Decisão
+
+A configuração adotada para o baseline será:
+
+```python
+TfidfVectorizer(
+    stop_words=None,
+)
