@@ -161,25 +161,50 @@ uv run pytest
 No checkpoint documentado:
 
 ```text
-17 passed
+18 passed
 ```
 
 O tempo total pode variar entre máquinas.
 
-### Experimento de stopwords: estado de reprodução
+### Reproduzir o experimento de stopwords
 
-O experimento de `stop_words=None` versus `stop_words="english"` está
-implementado e coberto por testes automatizados. Os resultados deste
-README foram obtidos com split interno estratificado
-(`random_state=42`), TF-IDF e Logistic Regression.
+O experimento que compara `stop_words=None` com
+`stop_words="english"` possui um ponto de entrada próprio e pode ser
+reproduzido diretamente pelo terminal:
 
-Entretanto, **no checkpoint atual ainda não existe um comando público de
-terminal dedicado que reproduza integralmente o experimento e imprima
-suas métricas**. Por isso, esta documentação não apresenta um comando
-inexistente ou hipotético.
+```bash
+uv run python -m banking_intent_classifier.experiment
+```
 
-A criação dessa entrada operacional será tratada antes da consolidação
-do baseline formal. O conjunto oficial de teste permanece preservado.
+O experimento utiliza um split interno estratificado e reprodutível
+(`random_state=42`) sobre o conjunto oficial de treinamento do BANKING77.
+
+O conjunto oficial de teste permanece preservado e não participa dessa
+decisão de configuração.
+
+Resultados esperados:
+
+```text
+EXPERIMENTO DE STOPWORDS
+==================================================
+
+Configuração: stop_words=None
+Accuracy: 0.8491
+Macro F1: 0.8412
+Weighted F1: 0.8482
+
+Configuração: stop_words=english
+Accuracy: 0.8206
+Macro F1: 0.8137
+Weighted F1: 0.8198
+```
+
+Nas condições deste experimento, `stop_words=None` apresentou o melhor
+resultado, com **Macro F1 de 0.8412**, contra **0.8137** utilizando
+`stop_words="english"`.
+
+Por esse motivo, `stop_words=None` foi selecionado para a configuração
+do baseline.
 
 ---
 ## 🎯 Contexto e problema
