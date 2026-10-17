@@ -93,6 +93,7 @@ reproduzi-la.
 | Executar EDA e validações do BANKING77 | `uv run python -m banking_intent_classifier.main` |
 | Comparar configurações de stopwords | `uv run python -m banking_intent_classifier.experiment` |
 | Treinar e validar o baseline formal | `uv run python -m banking_intent_classifier.baseline` |
+| Treinar, avaliar no teste oficial e salvar o Pipeline | `uv run python -m banking_intent_classifier.final_training` |
 | Executar a suíte automatizada | `uv run pytest` |
 
 ### Reproduzir a EDA e as validações
@@ -163,7 +164,7 @@ uv run pytest
 No checkpoint documentado:
 
 ```text
-20 passed
+22 passed
 ```
 
 O tempo total pode variar entre máquinas.
@@ -259,6 +260,60 @@ Na execução registrada, **20 testes passaram**:
 ```bash
 uv run pytest
 ```
+
+
+### Reproduzir a avaliação oficial e persistir o modelo
+
+Após selecionar a configuração do baseline na validação interna, o
+Pipeline **TF-IDF + Logistic Regression** foi treinado com todos os
+**10.003 registros oficiais de treinamento** e avaliado nos **3.080
+registros oficiais de teste**. O conjunto de teste não foi usado para
+selecionar a configuração ou ajustar hiperparâmetros.
+
+```bash
+uv run python -m banking_intent_classifier.final_training
+```
+
+Saída observada:
+
+```text
+AVALIAÇÃO FINAL — BANKING77
+==================================================
+Treinamento oficial: 10003
+Teste oficial: 3080
+Accuracy: 0.8769
+Macro F1: 0.8769
+Weighted F1: 0.8769
+Artefato salvo em: artifacts/baseline_pipeline.joblib
+```
+
+| Métrica | Validação interna | Teste oficial |
+| :--- | ---: | ---: |
+| Accuracy | 0,8491 | **0,8769** |
+| Macro F1 | 0,8412 | **0,8769** |
+| Weighted F1 | 0,8482 | **0,8769** |
+
+Os conjuntos de avaliação e os tamanhos de treinamento diferem entre as
+duas execuções; portanto, os valores não constituem uma comparação
+controlada entre modelos. As métricas são exibidas com quatro casas
+decimais. O detalhamento por classe e a matriz de confusão ainda estão
+pendentes.
+
+O arquivo `artifacts/baseline_pipeline.joblib` contém o Pipeline
+completo, incluindo o TF-IDF ajustado e o classificador treinado. O
+diretório `artifacts/` é ignorado pelo Git; o artefato pode ser gerado
+novamente pelo comando acima. **Carregue arquivos joblib apenas de
+fontes confiáveis**, pois a desserialização pode executar código.
+
+Para validar o fluxo automatizado e a persistência:
+
+```bash
+uv run pytest tests/test_final_training.py tests/test_model_repository.py -v
+uv run pytest
+```
+
+No checkpoint desta etapa, **22 testes passaram**. Consulte também
+`docs/study-notes/17-avaliacao-final-persistencia.md`.
 
 ---
 ## 🎯 Contexto e problema
@@ -436,8 +491,8 @@ e preparada para as demais etapas previstas no Tech Challenge.
 ---
 ## 🚀 Status do Projeto
 
-> 🚧 **Em desenvolvimento — EDA concluída e baseline formal validado
-> internamente; avaliação no teste oficial pendente**
+> 🚧 **Em desenvolvimento — EDA, baseline formal, avaliação oficial e
+> persistência do Pipeline concluídos; API e orquestração pendentes**
 
 O desenvolvimento está sendo realizado de forma incremental, mantendo o
 histórico de commits e Pull Requests como registro da evolução técnica e
@@ -474,6 +529,8 @@ seguinte forma:
 | `main.py` | Orquestração do fluxo de EDA |
 | `experiment.py` | Execução reproduzível da comparação de stopwords |
 | `baseline.py` | Treinamento e validação interna do baseline formal |
+| `final_training.py` | Treinamento oficial, avaliação no teste reservado e persistência do Pipeline |
+| `ModelRepository` | Salvamento e carregamento do Pipeline com joblib |
 
 Dentro da camada `application`, as responsabilidades da EDA também foram
 separadas para evitar que um único serviço concentre diferentes tipos de
@@ -530,9 +587,11 @@ src/banking_intent_classifier/
 ├── infrastructure/
 │   └── data/
 │       └── banking77_loader.py
+│   └── model_repository.py
 ├── presentation/
 │   └── console_reporter.py
 ├── baseline.py
+├── final_training.py
 ├── experiment.py
 └── main.py
 ```
@@ -790,9 +849,10 @@ regra geral para problemas de classificação textual.
 
 #### ✅ Checkpoint atual
 
-A etapa de EDA está concluída, o experimento de stopwords é reproduzível
-e o baseline formal foi validado internamente com sucesso. A suíte
-automatizada atual possui **20 testes**, todos aprovados.
+A etapa de EDA está concluída, o experimento de stopwords é reproduzível,
+o baseline formal foi validado internamente e a avaliação oficial foi
+executada com o Pipeline persistido. A suíte automatizada atual possui
+**22 testes**, todos aprovados.
 
 ```text
 BANKING77
@@ -812,13 +872,19 @@ BANKING77
    └── Baseline formal (Pipeline)    ✅
           ├── Accuracy    = 0,8491
           ├── Macro F1    = 0,8412
-          └── Weighted F1 = 0,8482
+           └── Weighted F1 = 0,8482
+    └── Avaliação oficial e persistência ✅
+           ├── Teste oficial: 3.080 registros
+           ├── Accuracy    = 0,8769
+           ├── Macro F1    = 0,8769
+           ├── Weighted F1 = 0,8769
+           └── artifacts/baseline_pipeline.joblib
 ```
 
-O próximo passo é executar a **avaliação final e detalhada** da
-configuração já definida, utilizando o conjunto oficial de teste apenas
-após treinar o modelo final no conjunto oficial de treinamento. A
-persistência do Pipeline também será abordada nessa próxima etapa.
+O próximo passo é disponibilizar o Pipeline persistido por uma **API de
+inferência** e avançar para a containerização e a orquestração com Airflow.
+A avaliação detalhada por classe e a matriz de confusão continuam
+previstas como melhoria da análise de resultados.
 
 ### 📋 Roadmap
 
@@ -850,7 +916,11 @@ persistência do Pipeline também será abordada nessa próxima etapa.
     -   [x] Reproduzir métricas na validação interna
     -   [x] Criar comando independente para execução do baseline
     -   [x] Adicionar testes do Pipeline e do entrypoint
--   [ ] Avaliação final e detalhada das métricas do modelo
+-   [x] Treinamento final com o conjunto oficial de treinamento
+-   [x] Avaliação global no conjunto oficial de teste
+-   [x] Persistência e carregamento do Pipeline com joblib
+-   [x] Testes automatizados do fluxo final (22 aprovados)
+-   [ ] Avaliação detalhada por classe e matriz de confusão
 -   [ ] API de inferência
 -   [ ] Containerização
 -   [ ] Pipeline CI/CD
