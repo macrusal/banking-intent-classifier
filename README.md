@@ -11,9 +11,9 @@ modelos em produção.
 
 ## 👥 Equipe
 
-| Nome | RM | E-mail | Papel |
-| :--- | :---: | :--- | :--- |
-| **Marcelo da Cruz Salvador** | **RM375166** | [macrusal@gmail.com](mailto:macrusal@gmail.com) | Software Engineering · Dados · Machine Learning Engineering |
+| Nome | RM | E-mail | Áreas de atuação                                        |
+| :--- | :---: | :--- |:--------------------------------------------------------|
+| **Marcelo da Cruz Salvador** | **RM375166** | [macrusal@gmail.com](mailto:macrusal@gmail.com) | Software/Backend Engineering · Machine Learning · MLOps |
 
 ## 🚀 Setup rápido
 
@@ -91,6 +91,8 @@ reproduzi-la.
 | Sincronizar ambiente e dependências | `uv sync` |
 | Verificar o Python do ambiente | `uv run python --version` |
 | Executar EDA e validações do BANKING77 | `uv run python -m banking_intent_classifier.main` |
+| Comparar configurações de stopwords | `uv run python -m banking_intent_classifier.experiment` |
+| Treinar e validar o baseline formal | `uv run python -m banking_intent_classifier.baseline` |
 | Executar a suíte automatizada | `uv run pytest` |
 
 ### Reproduzir a EDA e as validações
@@ -161,7 +163,7 @@ uv run pytest
 No checkpoint documentado:
 
 ```text
-18 passed
+20 passed
 ```
 
 O tempo total pode variar entre máquinas.
@@ -205,6 +207,58 @@ resultado, com **Macro F1 de 0.8412**, contra **0.8137** utilizando
 
 Por esse motivo, `stop_words=None` foi selecionado para a configuração
 do baseline.
+
+
+### Reproduzir o baseline formal
+
+Após comparar as configurações de pré-processamento, o projeto consolidou
+um **baseline formal** usando um `Pipeline` do scikit-learn. O Pipeline
+integra `TfidfVectorizer(stop_words=None)` e
+`LogisticRegression(max_iter=1000)`, garantindo que o mesmo
+pré-processamento ajustado durante o treinamento seja utilizado na
+inferência.
+
+O baseline utiliza apenas o split oficial de **treinamento** do
+BANKING77 (10.003 registros), dividido internamente com estratificação,
+`validation_size=0.2` e `random_state=42`:
+
+| Conjunto | Registros |
+| :--- | ---: |
+| Treino interno | 8.002 |
+| Validação interna | 2.001 |
+
+Para reproduzir:
+
+```bash
+uv run python -m banking_intent_classifier.baseline
+```
+
+Saída observada na execução validada:
+
+```text
+BASELINE FORMAL — BANKING77
+==================================================
+Treino interno: 8002
+Validação interna: 2001
+Configuração: TF-IDF + Logistic Regression | stop_words=None
+Accuracy: 0.8491
+Macro F1: 0.8412
+Weighted F1: 0.8482
+```
+
+Essas métricas reproduzem os resultados do experimento anterior para
+`stop_words=None`. O TF-IDF é ajustado somente no treino interno; os
+dados de validação são transformados com o Pipeline já ajustado. O
+**teste oficial (3.080 registros) não foi utilizado** para selecionar ou
+validar essa configuração e permanece reservado para a avaliação final.
+
+Os testes automatizados incluem verificações da configuração do Pipeline
+e da orquestração do comando `baseline`, além dos testes já existentes.
+Na execução registrada, **20 testes passaram**:
+
+```bash
+uv run pytest
+```
 
 ---
 ## 🎯 Contexto e problema
@@ -382,8 +436,8 @@ e preparada para as demais etapas previstas no Tech Challenge.
 ---
 ## 🚀 Status do Projeto
 
-> 🚧 **Em desenvolvimento — EDA concluída e baseline experimental
-> validado**
+> 🚧 **Em desenvolvimento — EDA concluída e baseline formal validado
+> internamente; avaliação no teste oficial pendente**
 
 O desenvolvimento está sendo realizado de forma incremental, mantendo o
 histórico de commits e Pull Requests como registro da evolução técnica e
@@ -417,7 +471,9 @@ seguinte forma:
 | `application` | Execução das análises e regras da aplicação |
 | `infrastructure` | Integração e carregamento de fontes externas de dados |
 | `presentation` | Formatação e apresentação dos resultados |
-| `main.py` | Orquestração do fluxo da aplicação |
+| `main.py` | Orquestração do fluxo de EDA |
+| `experiment.py` | Execução reproduzível da comparação de stopwords |
+| `baseline.py` | Treinamento e validação interna do baseline formal |
 
 Dentro da camada `application`, as responsabilidades da EDA também foram
 separadas para evitar que um único serviço concentre diferentes tipos de
@@ -431,7 +487,7 @@ análise:
 | `CorpusAnalyzer` | Características do corpus e frequência dos tokens |
 | `DatasetSplitter` | Split interno estratificado e reprodutível para treino e validação |
 | `TextPreprocessingExperiment` | Execução e comparação dos experimentos de pré-processamento textual |
-| `ModelTrainer` | Criação e treinamento do classificador Logistic Regression |
+| `ModelTrainer` | Criação do classificador e do Pipeline TF-IDF + Logistic Regression |
 | `ModelEvaluator` | Cálculo de Accuracy, Macro F1 e Weighted F1 |
 
 A apresentação dos resultados no terminal permanece isolada no
@@ -476,6 +532,8 @@ src/banking_intent_classifier/
 │       └── banking77_loader.py
 ├── presentation/
 │   └── console_reporter.py
+├── baseline.py
+├── experiment.py
 └── main.py
 ```
 
@@ -732,9 +790,9 @@ regra geral para problemas de classificação textual.
 
 #### ✅ Checkpoint atual
 
-A etapa de EDA está concluída e o primeiro baseline experimental foi
-reproduzido com sucesso. A suíte automatizada atual possui **17
-testes**, todos aprovados.
+A etapa de EDA está concluída, o experimento de stopwords é reproduzível
+e o baseline formal foi validado internamente com sucesso. A suíte
+automatizada atual possui **20 testes**, todos aprovados.
 
 ```text
 BANKING77
@@ -748,15 +806,19 @@ BANKING77
    ├── Tokens frequentes             ✅
    ├── Leakage / overlap exato       ✅
    ├── Split estratificado           ✅
-   └── Experimento de stopwords      ✅
-              │
-              ├── None     Macro F1 = 0,8412
-              └── English  Macro F1 = 0,8137
+   ├── Experimento de stopwords      ✅
+   │      ├── None     Macro F1 = 0,8412
+   │      └── English  Macro F1 = 0,8137
+   └── Baseline formal (Pipeline)    ✅
+          ├── Accuracy    = 0,8491
+          ├── Macro F1    = 0,8412
+          └── Weighted F1 = 0,8482
 ```
 
-O próximo passo é evoluir do experimento para o **baseline formal de
-modelagem**, mantendo o conjunto oficial de teste preservado até a
-definição da configuração a ser avaliada.
+O próximo passo é executar a **avaliação final e detalhada** da
+configuração já definida, utilizando o conjunto oficial de teste apenas
+após treinar o modelo final no conjunto oficial de treinamento. A
+persistência do Pipeline também será abordada nessa próxima etapa.
 
 ### 📋 Roadmap
 
@@ -783,7 +845,11 @@ definição da configuração a ser avaliada.
     -   [x] Comparar `stop_words=None` e `stop_words="english"`
     -   [x] Avaliar Accuracy, Macro F1 e Weighted F1
     -   [x] Selecionar `stop_words=None` com base nos resultados
--   [ ] Consolidar baseline formal de modelagem
+-   [x] Consolidar baseline formal de modelagem
+    -   [x] Integrar TF-IDF e Logistic Regression em um Pipeline
+    -   [x] Reproduzir métricas na validação interna
+    -   [x] Criar comando independente para execução do baseline
+    -   [x] Adicionar testes do Pipeline e do entrypoint
 -   [ ] Avaliação final e detalhada das métricas do modelo
 -   [ ] API de inferência
 -   [ ] Containerização
