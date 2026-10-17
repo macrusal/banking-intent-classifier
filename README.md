@@ -97,6 +97,9 @@ reproduzi-la.
 | Iniciar a API de inferência | `uv run uvicorn banking_intent_classifier.presentation.api:app --reload` |
 | Testar os endpoints HTTP | `uv run pytest tests/presentation/test_api.py -v` |
 | Executar a suíte automatizada | `uv run pytest` |
+| Verificar a qualidade do código com Ruff | `uv run ruff check .` |
+| Reproduzir as verificações do CI com dependências travadas | `uv sync --frozen && uv run --frozen ruff check . && uv run --frozen pytest` |
+| Construir a imagem Docker utilizada no CI (após gerar artefatos) | `docker build -t banking-intent-classifier:ci .` |
 | Construir a imagem Docker (após gerar os artefatos) | `docker build -t banking-intent-classifier:local .` |
 | Iniciar a API no Docker | `docker run --rm --name banking-intent-api -p 8001:8000 banking-intent-classifier:local` |
 | Testar a API no Docker | `curl -s http://localhost:8001/health` |
@@ -166,11 +169,13 @@ tokens mais frequentes.
 uv run pytest
 ```
 
-No checkpoint documentado:
+No checkpoint histórico desta etapa inicial:
 
 ```text
 20 passed
 ```
+
+Na validação mais recente do projeto, em 17/10/2026, a suíte completa apresentou **31 testes aprovados**. O comando de reprodução permanece o mesmo.
 
 O tempo total pode variar entre máquinas.
 
@@ -509,6 +514,84 @@ substituem o carregamento dos artefatos por mocks.
 
 ---
 
+## 🔄 Integração Contínua (CI/CD) — GitHub Actions
+
+O projeto utiliza **GitHub Actions** para validar automaticamente a
+qualidade do código, os testes e a construção da imagem Docker. O workflow
+versionado está em [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+### Eventos e verificações
+
+O workflow é acionado em `push` e `pull_request` para as branches `dev` e
+`main`, além de permitir execução manual por `workflow_dispatch`.
+
+| Job | Verificação | Comando ou mecanismo |
+| :--- | :--- | :--- |
+| `lint` | Análise estática do código | `uv run --frozen ruff check .` |
+| `tests` | Suíte automatizada | `uv run --frozen pytest` |
+| `docker-build` | Treinamento, verificação dos artefatos e construção da imagem | `uv run --frozen python -m banking_intent_classifier.final_training` e `docker/build-push-action@v6` |
+
+Os **três jobs são independentes e podem executar em paralelo**. Não há
+uma dependência sequencial configurada entre lint, testes e build. O build
+valida a construção da imagem, mas **não publica** a imagem em registry
+(`push: false`) nem realiza deploy.
+
+### Reprodução local do CI
+
+Execute na raiz do repositório, com `uv`, Python 3.12 ou superior e Docker
+disponíveis:
+
+```bash
+# Instalar as dependências conforme o lockfile
+uv sync --frozen
+
+# Reproduzir os dois controles de qualidade
+uv run --frozen ruff check .
+uv run --frozen pytest
+
+# Gerar os artefatos que não são versionados no Git
+uv run --frozen python -m banking_intent_classifier.final_training
+
+# Confirmar a presença dos arquivos gerados
+test -s artifacts/baseline_pipeline.joblib
+test -s artifacts/label_mapping.json
+
+# Reproduzir o build da imagem
+docker build -t banking-intent-classifier:ci .
+```
+
+O `docker-build` do GitHub Actions executa o treinamento **antes** de
+construir a imagem, pois a pasta `artifacts/` é ignorada pelo Git. O job
+valida que `baseline_pipeline.joblib` e `label_mapping.json` existem e
+não estão vazios. A execução requer acesso ao dataset BANKING77 no
+Hugging Face Hub; o download e o treinamento podem aumentar o tempo de CI.
+
+### Evidências de execução
+
+Em **17/10/2026**, as três verificações passaram no Pull Request de
+adição do build Docker e novamente após o merge na branch `dev`, conforme
+validação informada e capturas do GitHub Actions:
+
+| Verificação no Pull Request | Resultado | Duração observada |
+| :--- | :--- | ---: |
+| Ruff — Análise estática | Aprovado | 11 s |
+| Pytest — Testes automatizados | Aprovado | 16 s |
+| Docker — Build da imagem | Aprovado | 35 s |
+
+A suíte completa também foi executada localmente com **31 testes
+aprovados** e um aviso de depreciação do Starlette/httpx, sem falhas.
+
+Para consultar as execuções e os logs dos jobs, acesse a
+[aba Actions do repositório](https://github.com/macrusal/banking-intent-classifier/actions).
+Os registros de execução no GitHub são a evidência verificável; os tempos
+acima são apenas observações e podem variar entre execuções.
+
+Esta entrega atende à frente técnica de **CI/CD** do Tech Challenge —
+Fase 3. A documentação das demais frentes da rubrica será incorporada
+conforme suas validações forem concluídas.
+
+---
+
 ## 🎯 Contexto e problema
 
 Canais digitais de atendimento bancário recebem mensagens escritas de
@@ -684,8 +767,7 @@ e preparada para as demais etapas previstas no Tech Challenge.
 ---
 ## 🚀 Status do Projeto
 
-> 🚧 **Em desenvolvimento — EDA concluída e baseline formal validado
-> internamente; avaliação no teste oficial pendente**
+> 🚧 **Em desenvolvimento — EDA, baseline, avaliação oficial, API, Docker e CI/CD validados; Airflow, monitoramento e otimização pendentes.**
 
 O desenvolvimento está sendo realizado de forma incremental, mantendo o
 histórico de commits e Pull Requests como registro da evolução técnica e
@@ -1060,12 +1142,14 @@ BANKING77 (13.083 mensagens; 77 classes)
     ├── Modelo joblib + metadados JSON         ✅
     ├── API FastAPI (health + predict)         ✅
     ├── Docker (build e inferência HTTP)       ✅
-    └── Testes automatizados (31 aprovados)    ✅
+    ├── Testes automatizados (31 aprovados)    ✅
+    └── CI/CD (Ruff + Pytest + Docker Build)   ✅
 ```
 
 A containerização da API foi validada com uma inferência real no Docker.
+O pipeline de CI/CD foi validado em Pull Request e após merge na `dev`.
 As próximas etapas planejadas são a orquestração do treinamento com
-Apache Airflow e a evolução do CI/CD.
+Apache Airflow, monitoramento e otimização de latência.
 
 ### 📋 Roadmap
 
@@ -1100,7 +1184,12 @@ Apache Airflow e a evolução do CI/CD.
 -   [x] Avaliação final e detalhada das métricas do modelo
 -   [x] API de inferência
 -   [x] Containerização da API com Docker
--   [ ] Pipeline CI/CD
+-   [x] Pipeline CI/CD
+    -   [x] Ruff — análise estática
+    -   [x] Pytest — testes automatizados
+    -   [x] Geração e validação dos artefatos no runner
+    -   [x] Docker Build — construção da imagem
+    -   [x] Validação em Pull Request e após merge na `dev`
 -   [ ] Pipeline de treinamento com Airflow
 -   [ ] Monitoramento com Prometheus
 -   [ ] Dashboards no Grafana
