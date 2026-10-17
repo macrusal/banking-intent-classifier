@@ -11,9 +11,13 @@ from banking_intent_classifier.infrastructure.data.banking77_loader import (
 from banking_intent_classifier.infrastructure.model_repository import (
     ModelRepository,
 )
-
+from banking_intent_classifier.infrastructure.label_repository import (
+    LabelRepository,
+)
 
 ARTIFACT_PATH = Path("artifacts/baseline_pipeline.joblib")
+
+LABEL_MAPPING_PATH = Path("artifacts/label_mapping.json")
 
 
 def main() -> None:
@@ -40,6 +44,9 @@ def main() -> None:
     )
 
     ModelRepository.save(pipeline, ARTIFACT_PATH)
+    labels = train_split.features["label"].names
+
+    LabelRepository.save(labels, LABEL_MAPPING_PATH)
 
     print("AVALIAÇÃO FINAL — BANKING77")
     print("=" * 50)
@@ -49,6 +56,8 @@ def main() -> None:
     print(f"Macro F1: {result.macro_f1:.4f}")
     print(f"Weighted F1: {result.weighted_f1:.4f}")
     print(f"Artefato salvo em: {ARTIFACT_PATH}")
+    print(f"Classes persistidas: {len(labels)}")
+    print(f"Mapeamento salvo em: {LABEL_MAPPING_PATH}")
 
 
 if __name__ == "__main__":
