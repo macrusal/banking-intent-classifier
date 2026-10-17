@@ -2,12 +2,12 @@
 
 from banking_intent_classifier.domain.dataset_summary import (
     ClassDistributionSummary,
+    CorpusSummary,
     DatasetSummary,
     SplitSummary,
     TextLengthDistributionSummary,
     TextLengthOutliersSummary,
     TextLengthSummary,
-    CorpusSummary,
     TokenFrequency,
 )
 

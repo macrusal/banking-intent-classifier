@@ -8,11 +8,11 @@ from banking_intent_classifier.application.model_trainer import ModelTrainer
 from banking_intent_classifier.infrastructure.data.banking77_loader import (
     load_banking77,
 )
-from banking_intent_classifier.infrastructure.model_repository import (
-    ModelRepository,
-)
 from banking_intent_classifier.infrastructure.label_repository import (
     LabelRepository,
+)
+from banking_intent_classifier.infrastructure.model_repository import (
+    ModelRepository,
 )
 
 ARTIFACT_PATH = Path("artifacts/baseline_pipeline.joblib")

@@ -10,11 +10,10 @@ from pydantic import BaseModel, Field
 from banking_intent_classifier.application.prediction_service import (
     PredictionService,
 )
+from banking_intent_classifier.infrastructure.label_repository import LabelRepository
 from banking_intent_classifier.infrastructure.model_repository import (
     ModelRepository,
 )
-from banking_intent_classifier.infrastructure.label_repository import LabelRepository
-
 
 ARTIFACT_PATH = Path("artifacts/baseline_pipeline.joblib")
 LABEL_MAPPING_PATH = Path("artifacts/label_mapping.json")

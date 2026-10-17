@@ -6,8 +6,8 @@ from datasets import DatasetDict
 
 from banking_intent_classifier.domain.dataset_summary import (
     TextLengthDistributionSummary,
-    TextLengthOutlierSummary,
     TextLengthOutliersSummary,
+    TextLengthOutlierSummary,
     TextLengthPercentiles,
     TextLengthSummary,
 )

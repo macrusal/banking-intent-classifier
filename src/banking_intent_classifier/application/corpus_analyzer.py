@@ -1,7 +1,7 @@
 """Análise do corpus textual do dataset."""
 
-from collections import Counter
 import string
+from collections import Counter
 
 from datasets import DatasetDict
 

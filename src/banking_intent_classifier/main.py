@@ -3,19 +3,20 @@
 from banking_intent_classifier.application.class_distribution_analyzer import (
     ClassDistributionAnalyzer,
 )
+from banking_intent_classifier.application.corpus_analyzer import (
+    CorpusAnalyzer,
+)
 from banking_intent_classifier.application.dataset_service import DatasetService
+from banking_intent_classifier.application.text_length_analyzer import (
+    TextLengthAnalyzer,
+)
 from banking_intent_classifier.infrastructure.data.banking77_loader import (
     load_banking77,
 )
 from banking_intent_classifier.presentation.console_reporter import (
     ConsoleReporter,
 )
-from banking_intent_classifier.application.text_length_analyzer import (
-    TextLengthAnalyzer,
-)
-from banking_intent_classifier.application.corpus_analyzer import (
-    CorpusAnalyzer,
-)
+
 
 def main() -> None:
     """Executa as análises do dataset BANKING77."""

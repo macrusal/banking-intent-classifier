@@ -1,0 +1,61 @@
+
+name: CI - Qualidade e Testes
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Ruff - Análise estática
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Configurar Python
+        run: uv python install 3.12
+
+      - name: Instalar dependências
+        run: uv sync --frozen --python 3.12
+
+      - name: Executar Ruff
+        run: uv run --frozen ruff check .
+
+  tests:
+    name: Pytest - Testes automatizados
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Configurar Python
+        run: uv python install 3.12
+
+      - name: Instalar dependências
+        run: uv sync --frozen --python 3.12
+
+      - name: Executar testes
+        run: uv run --frozen pytest
