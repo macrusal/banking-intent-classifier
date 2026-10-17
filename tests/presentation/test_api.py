@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from banking_intent_classifier.presentation.api import app
 
-
 LABELS = ["balance"] * 11 + ["card_arrival"]
 
 
@@ -22,10 +21,9 @@ def test_health_endpoint() -> None:
         patch(
             "banking_intent_classifier.presentation.api.LabelRepository.load",
             return_value=LABELS,
-        ),
+        ),TestClient(app) as client
     ):
-        with TestClient(app) as client:
-            response = client.get("/health")
+        response = client.get("/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
@@ -44,13 +42,12 @@ def test_predict_endpoint() -> None:
         patch(
             "banking_intent_classifier.presentation.api.LabelRepository.load",
             return_value=LABELS,
-        ),
+        ),TestClient(app) as client
     ):
-        with TestClient(app) as client:
-            response = client.post(
-                "/predict",
-                json={"text": "I am still waiting on my card"},
-            )
+        response = client.post(
+            "/predict",
+            json={"text": "I am still waiting on my card"},
+        )
 
     assert response.status_code == 200
     assert response.json() == {
@@ -72,10 +69,9 @@ def test_predict_rejects_empty_text() -> None:
         patch(
             "banking_intent_classifier.presentation.api.LabelRepository.load",
             return_value=LABELS,
-        ),
+        ),TestClient(app) as client
     ):
-        with TestClient(app) as client:
-            response = client.post("/predict", json={"text": ""})
+        response = client.post("/predict", json={"text": ""})
 
     assert response.status_code == 422
     model.predict.assert_not_called()
@@ -93,10 +89,9 @@ def test_predict_rejects_blank_text() -> None:
         patch(
             "banking_intent_classifier.presentation.api.LabelRepository.load",
             return_value=LABELS,
-        ),
+        ),TestClient(app) as client
     ):
-        with TestClient(app) as client:
-            response = client.post("/predict", json={"text": "   "})
+        response = client.post("/predict", json={"text": "   "})
 
     assert response.status_code == 422
     model.predict.assert_not_called()

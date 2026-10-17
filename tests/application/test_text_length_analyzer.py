@@ -4,6 +4,7 @@ from banking_intent_classifier.application.text_length_analyzer import (
     TextLengthAnalyzer,
 )
 
+
 def test_should_summarize_text_length() -> None:
     dataset = DatasetDict(
         {

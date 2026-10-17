@@ -2,7 +2,6 @@
 
 from datasets import DatasetDict, load_dataset
 
-
 DATASET_NAME = "PolyAI/banking77"
 DATASET_REVISION = "refs/pr/6"
 
