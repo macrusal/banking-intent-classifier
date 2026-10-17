@@ -1,7 +1,8 @@
 """Treinamento do modelo de classificação."""
 
 from sklearn.linear_model import LogisticRegression
-
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.pipeline import Pipeline
 
 class ModelTrainer:
     """Responsável pelo treinamento do classificador."""
@@ -25,3 +26,20 @@ class ModelTrainer:
         classifier.fit(features, labels)
 
         return classifier
+
+    @staticmethod
+    def create_baseline_pipeline() -> Pipeline:
+        """Cria o pipeline oficial do baseline textual."""
+
+        return Pipeline(
+            steps=[
+                (
+                    "tfidf",
+                    TfidfVectorizer(stop_words=None),
+                ),
+                (
+                    "classifier",
+                    ModelTrainer.create_classifier(),
+                ),
+            ],
+        )
