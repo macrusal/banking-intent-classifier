@@ -93,7 +93,9 @@ reproduzi-la.
 | Executar EDA e validações do BANKING77 | `uv run python -m banking_intent_classifier.main` |
 | Comparar configurações de stopwords | `uv run python -m banking_intent_classifier.experiment` |
 | Treinar e validar o baseline formal | `uv run python -m banking_intent_classifier.baseline` |
-| Treinar, avaliar no teste oficial e salvar o Pipeline | `uv run python -m banking_intent_classifier.final_training` |
+| Treinar, avaliar e persistir o modelo final e as 77 classes | `uv run python -m banking_intent_classifier.final_training` |
+| Iniciar a API de inferência | `uv run uvicorn banking_intent_classifier.presentation.api:app --reload` |
+| Testar os endpoints HTTP | `uv run pytest tests/presentation/test_api.py -v` |
 | Executar a suíte automatizada | `uv run pytest` |
 
 ### Reproduzir a EDA e as validações
@@ -164,7 +166,7 @@ uv run pytest
 No checkpoint documentado:
 
 ```text
-22 passed
+20 passed
 ```
 
 O tempo total pode variar entre máquinas.
@@ -261,16 +263,19 @@ Na execução registrada, **20 testes passaram**:
 uv run pytest
 ```
 
+---
+## 🧪 Treinamento final, artefatos e API HTTP
 
-### Reproduzir a avaliação oficial e persistir o modelo
+### Treinamento oficial e persistência
 
-Após selecionar a configuração do baseline na validação interna, o
-Pipeline **TF-IDF + Logistic Regression** foi treinado com todos os
-**10.003 registros oficiais de treinamento** e avaliado nos **3.080
-registros oficiais de teste**. O conjunto de teste não foi usado para
-selecionar a configuração ou ajustar hiperparâmetros.
+Após definir a configuração do baseline com validação interna, o modelo
+é treinado novamente no **split oficial de treino** do BANKING77 (10.003
+registros) e avaliado no **split oficial de teste** (3.080 registros).
+O conjunto oficial de teste não foi utilizado para selecionar a
+configuração do baseline.
 
 ```bash
+uv sync
 uv run python -m banking_intent_classifier.final_training
 ```
 
@@ -285,37 +290,116 @@ Accuracy: 0.8769
 Macro F1: 0.8769
 Weighted F1: 0.8769
 Artefato salvo em: artifacts/baseline_pipeline.joblib
+Classes persistidas: 77
+Mapeamento salvo em: artifacts/label_mapping.json
 ```
 
-| Métrica | Validação interna | Teste oficial |
-| :--- | ---: | ---: |
-| Accuracy | 0,8491 | **0,8769** |
-| Macro F1 | 0,8412 | **0,8769** |
-| Weighted F1 | 0,8482 | **0,8769** |
+O treinamento gera os seguintes artefatos locais:
 
-Os conjuntos de avaliação e os tamanhos de treinamento diferem entre as
-duas execuções; portanto, os valores não constituem uma comparação
-controlada entre modelos. As métricas são exibidas com quatro casas
-decimais. O detalhamento por classe e a matriz de confusão ainda estão
-pendentes.
+| Arquivo | Conteúdo |
+| :--- | :--- |
+| `artifacts/baseline_pipeline.joblib` | Pipeline treinado com TF-IDF e Logistic Regression |
+| `artifacts/label_mapping.json` | Lista ordenada dos nomes das 77 intenções; índice = ID da classe |
 
-O arquivo `artifacts/baseline_pipeline.joblib` contém o Pipeline
-completo, incluindo o TF-IDF ajustado e o classificador treinado. O
-diretório `artifacts/` é ignorado pelo Git; o artefato pode ser gerado
-novamente pelo comando acima. **Carregue arquivos joblib apenas de
-fontes confiáveis**, pois a desserialização pode executar código.
+A pasta `artifacts/` é ignorada pelo Git: **os artefatos precisam ser
+gerados localmente antes de iniciar a API**. Não carregue arquivos
+`joblib` de fontes não confiáveis. O Hugging Face Hub pode apresentar um
+aviso de acesso sem `HF_TOKEN`; nas execuções registradas isso não
+impediu o treinamento.
 
-Para validar o fluxo automatizado e a persistência:
+Para verificar os metadados persistidos:
 
 ```bash
-uv run pytest tests/test_final_training.py tests/test_model_repository.py -v
+uv run python -c "from pathlib import Path; from banking_intent_classifier.infrastructure.label_repository import LabelRepository; labels = LabelRepository.load(Path('artifacts/label_mapping.json')); print('Total:', len(labels)); print('Classe 11:', labels[11])"
+```
+
+Resultado esperado:
+
+```text
+Total: 77
+Classe 11: card_arrival
+```
+
+### Executar a API FastAPI
+
+A API carrega o modelo e o mapeamento de classes durante a inicialização,
+sem consultar o Hugging Face Hub a cada requisição. Instale as
+dependências do projeto e gere os artefatos antes de iniciá-la:
+
+```bash
+uv sync
+uv run python -m banking_intent_classifier.final_training
+uv run uvicorn banking_intent_classifier.presentation.api:app --reload
+```
+
+Servidor local: `http://127.0.0.1:8000`.
+Documentação interativa (OpenAPI/Swagger): `http://127.0.0.1:8000/docs`.
+
+| Método | Endpoint | Descrição |
+| :--- | :--- | :--- |
+| GET | `/health` | Retorna o estado operacional básico da API |
+| POST | `/predict` | Classifica uma mensagem e retorna ID e nome da intenção |
+
+Em outro terminal, teste o endpoint de saúde:
+
+```bash
+curl -s http://127.0.0.1:8000/health
+```
+
+Resposta observada:
+
+```json
+{"status":"ok"}
+```
+
+Teste a inferência real:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text":"I am still waiting on my card"}'
+```
+
+Resposta observada com os artefatos gerados nesta execução:
+
+```json
+{"intent_id":11,"intent":"card_arrival"}
+```
+
+O endpoint exige um campo `text` não vazio; entradas vazias ou somente
+com espaços são rejeitadas com HTTP 422. O endpoint `/health` não deve
+ser interpretado como uma verificação completa de prontidão do modelo.
+
+### Testes automatizados
+
+```bash
+uv run pytest tests/application/test_prediction_service.py -v
+uv run pytest tests/presentation/test_api.py -v
+uv run pytest tests/test_final_training.py tests/test_model_repository.py tests/test_label_repository.py -v
 uv run pytest
 ```
 
-No checkpoint desta etapa, **22 testes passaram**. Consulte também
-`docs/study-notes/17-avaliacao-final-persistencia.md`.
+**Última execução registrada:** 31 testes aprovados, nenhuma falha,
+1 aviso `StarletteDeprecationWarning` relacionado ao uso de `httpx`
+com `starlette.testclient`. O aviso não impediu a execução, mas deverá
+ser revisado na etapa de atualização de dependências/CI.
+
+### Organização da funcionalidade
+
+| Camada | Componente | Responsabilidade |
+| :--- | :--- | :--- |
+| Application | `application/prediction_service.py` | Valida o texto e executa a predição |
+| Infrastructure | `infrastructure/model_repository.py` | Persiste e carrega o Pipeline joblib |
+| Infrastructure | `infrastructure/label_repository.py` | Persiste e carrega os nomes ordenados das classes |
+| Presentation | `presentation/api.py` | Define contratos HTTP, ciclo de vida e endpoints FastAPI |
+| Orquestração | `final_training.py` | Treina, avalia e produz os dois artefatos |
+
+A API e os testes de integração podem ser reproduzidos sem baixar o
+dataset, desde que os artefatos já tenham sido gerados; os testes
+substituem o carregamento dos artefatos por mocks.
 
 ---
+
 ## 🎯 Contexto e problema
 
 Canais digitais de atendimento bancário recebem mensagens escritas de
@@ -491,8 +575,8 @@ e preparada para as demais etapas previstas no Tech Challenge.
 ---
 ## 🚀 Status do Projeto
 
-> 🚧 **Em desenvolvimento — EDA, baseline formal, avaliação oficial e
-> persistência do Pipeline concluídos; API e orquestração pendentes**
+> 🚧 **Em desenvolvimento — EDA concluída e baseline formal validado
+> internamente; avaliação no teste oficial pendente**
 
 O desenvolvimento está sendo realizado de forma incremental, mantendo o
 histórico de commits e Pull Requests como registro da evolução técnica e
@@ -529,8 +613,6 @@ seguinte forma:
 | `main.py` | Orquestração do fluxo de EDA |
 | `experiment.py` | Execução reproduzível da comparação de stopwords |
 | `baseline.py` | Treinamento e validação interna do baseline formal |
-| `final_training.py` | Treinamento oficial, avaliação no teste reservado e persistência do Pipeline |
-| `ModelRepository` | Salvamento e carregamento do Pipeline com joblib |
 
 Dentro da camada `application`, as responsabilidades da EDA também foram
 separadas para evitar que um único serviço concentre diferentes tipos de
@@ -587,11 +669,9 @@ src/banking_intent_classifier/
 ├── infrastructure/
 │   └── data/
 │       └── banking77_loader.py
-│   └── model_repository.py
 ├── presentation/
 │   └── console_reporter.py
 ├── baseline.py
-├── final_training.py
 ├── experiment.py
 └── main.py
 ```
@@ -849,42 +929,32 @@ regra geral para problemas de classificação textual.
 
 #### ✅ Checkpoint atual
 
-A etapa de EDA está concluída, o experimento de stopwords é reproduzível,
-o baseline formal foi validado internamente e a avaliação oficial foi
-executada com o Pipeline persistido. A suíte automatizada atual possui
-**22 testes**, todos aprovados.
+A EDA, o experimento de stopwords, o baseline formal e a avaliação oficial
+foram concluídos. O modelo final foi persistido junto ao mapeamento das
+77 classes e disponibilizado por uma API FastAPI. A suíte automatizada
+possui **31 testes aprovados** na execução registrada em 17/10/2026.
 
 ```text
-BANKING77
-   │
-   ├── Validação estrutural          ✅
-   ├── Qualidade dos dados           ✅
-   ├── Distribuição das 77 classes   ✅
-   ├── Comprimento dos textos        ✅
-   ├── Possíveis outliers / IQR      ✅
-   ├── Corpus e vocabulário          ✅
-   ├── Tokens frequentes             ✅
-   ├── Leakage / overlap exato       ✅
-   ├── Split estratificado           ✅
-   ├── Experimento de stopwords      ✅
-   │      ├── None     Macro F1 = 0,8412
-   │      └── English  Macro F1 = 0,8137
-   └── Baseline formal (Pipeline)    ✅
-          ├── Accuracy    = 0,8491
-          ├── Macro F1    = 0,8412
-           └── Weighted F1 = 0,8482
-    └── Avaliação oficial e persistência ✅
-           ├── Teste oficial: 3.080 registros
-           ├── Accuracy    = 0,8769
-           ├── Macro F1    = 0,8769
-           ├── Weighted F1 = 0,8769
-           └── artifacts/baseline_pipeline.joblib
+BANKING77 (13.083 mensagens; 77 classes)
+    │
+    ├── EDA e validações                       ✅
+    ├── Experimento de stopwords               ✅
+    ├── Baseline formal (validação interna)    ✅
+    │     ├── Accuracy:    0,8491
+    │     ├── Macro F1:    0,8412
+    │     └── Weighted F1: 0,8482
+    ├── Treinamento e avaliação oficiais       ✅
+    │     ├── Treino: 10.003 / Teste: 3.080
+    │     ├── Accuracy:    0,8769
+    │     ├── Macro F1:    0,8769
+    │     └── Weighted F1: 0,8769
+    ├── Modelo joblib + metadados JSON         ✅
+    ├── API FastAPI (health + predict)         ✅
+    └── Testes automatizados (31 aprovados)    ✅
 ```
 
-O próximo passo é disponibilizar o Pipeline persistido por uma **API de
-inferência** e avançar para a containerização e a orquestração com Airflow.
-A avaliação detalhada por classe e a matriz de confusão continuam
-previstas como melhoria da análise de resultados.
+A próxima etapa planejada é a containerização da API, seguida da
+orquestração do treinamento com Apache Airflow.
 
 ### 📋 Roadmap
 
@@ -916,12 +986,8 @@ previstas como melhoria da análise de resultados.
     -   [x] Reproduzir métricas na validação interna
     -   [x] Criar comando independente para execução do baseline
     -   [x] Adicionar testes do Pipeline e do entrypoint
--   [x] Treinamento final com o conjunto oficial de treinamento
--   [x] Avaliação global no conjunto oficial de teste
--   [x] Persistência e carregamento do Pipeline com joblib
--   [x] Testes automatizados do fluxo final (22 aprovados)
--   [ ] Avaliação detalhada por classe e matriz de confusão
--   [ ] API de inferência
+-   [x] Avaliação final e detalhada das métricas do modelo
+-   [x] API de inferência
 -   [ ] Containerização
 -   [ ] Pipeline CI/CD
 -   [ ] Pipeline de treinamento com Airflow

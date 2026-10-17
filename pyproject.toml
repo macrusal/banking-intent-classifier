@@ -7,9 +7,11 @@ requires-python = ">=3.12"
 
 dependencies = [
     "datasets",
+    "fastapi>=0.143.3",
     "pandas",
     "scikit-learn>=1.9.1",
     "summary>=0.2.0",
+    "uvicorn>=0.54.0",
 ]
 
 [build-system]
@@ -18,5 +20,6 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=9.1.1",
 ]
