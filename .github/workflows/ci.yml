@@ -98,3 +98,24 @@ jobs:
           file: ./Dockerfile
           push: false
           tags: banking-intent-classifier:ci
+
+  validate-gitflow:
+    name: GitFlow - Validar origem do PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verificar origem do Pull Request
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" && "$BASE_REF" == "main" ]]; then
+            if [[ "$HEAD_REF" != "dev" ]]; then
+              echo "::error::PRs para main devem ter origem na branch dev."
+              echo "Origem recebida: $HEAD_REF"
+              exit 1
+            fi
+          fi
+
+          echo "Política GitFlow validada com sucesso."
