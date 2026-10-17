@@ -11,9 +11,9 @@ modelos em produção.
 
 ## 👥 Equipe
 
-| Nome | RM | E-mail | Áreas de atuação                                        |
-| :--- | :---: | :--- |:--------------------------------------------------------|
-| **Marcelo da Cruz Salvador** | **RM375166** | [macrusal@gmail.com](mailto:macrusal@gmail.com) | Software/Backend Engineering · Machine Learning · MLOps |
+| Nome | RM | E-mail | Áreas de atuação                                            |
+| :--- | :---: | :--- |:------------------------------------------------------------|
+| **Marcelo da Cruz Salvador** | **RM375166** | [macrusal@gmail.com](mailto:macrusal@gmail.com) | Software/Backend Engineering · Data · Machine Learning · MLOps |
 
 ## 🚀 Setup rápido
 
@@ -97,6 +97,9 @@ reproduzi-la.
 | Iniciar a API de inferência | `uv run uvicorn banking_intent_classifier.presentation.api:app --reload` |
 | Testar os endpoints HTTP | `uv run pytest tests/presentation/test_api.py -v` |
 | Executar a suíte automatizada | `uv run pytest` |
+| Construir a imagem Docker (após gerar os artefatos) | `docker build -t banking-intent-classifier:local .` |
+| Iniciar a API no Docker | `docker run --rm --name banking-intent-api -p 8001:8000 banking-intent-classifier:local` |
+| Testar a API no Docker | `curl -s http://localhost:8001/health` |
 
 ### Reproduzir a EDA e as validações
 
@@ -369,6 +372,112 @@ Resposta observada com os artefatos gerados nesta execução:
 O endpoint exige um campo `text` não vazio; entradas vazias ou somente
 com espaços são rejeitadas com HTTP 422. O endpoint `/health` não deve
 ser interpretado como uma verificação completa de prontidão do modelo.
+
+### Executar a API no Docker
+
+A imagem Docker permite executar a mesma API em um contêiner, sem
+instalar as dependências Python diretamente na máquina anfitriã.
+**O treinamento não acontece durante o build:** os artefatos locais
+precisam existir antes da construção da imagem.
+
+#### 1. Preparar os artefatos e conferir o Docker
+
+Na raiz do repositório, execute:
+
+```bash
+uv sync
+uv run python -m banking_intent_classifier.final_training
+ls -lh artifacts/baseline_pipeline.joblib artifacts/label_mapping.json
+docker info --format '{{.ServerVersion}}'
+```
+
+A execução de `final_training` gera o modelo e o mapeamento das 77 classes.
+Se o Docker informar que não consegue se conectar ao daemon, inicie o
+Docker Desktop e repita a verificação.
+
+#### 2. Construir a imagem
+
+```bash
+docker build -t banking-intent-classifier:local .
+```
+
+O `Dockerfile` utiliza `python:3.12-slim`, instala as dependências com
+`uv` a partir de `pyproject.toml` e `uv.lock`, copia o código de `src/`
+e incorpora os dois arquivos de `artifacts/`. O `.dockerignore` evita
+incluir arquivos locais desnecessários, mas **não exclui `artifacts/`**.
+
+> Atenção: a versão do Python usada no desenvolvimento pode diferir da
+> versão da imagem. A persistência via `joblib` requer compatibilidade
+> entre as bibliotecas utilizadas no treinamento e na inferência.
+> Por isso, valide o carregamento e uma predição real após cada alteração
+> relevante de dependências ou da imagem.
+
+#### 3. Iniciar o servidor containerizado
+
+```bash
+docker run --rm \
+  --name banking-intent-api \
+  -p 8001:8000 \
+  banking-intent-classifier:local
+```
+
+A porta **8001** do computador é encaminhada para a porta **8000** do
+contêiner. Mantenha esse terminal aberto durante os testes. Para
+interromper o servidor, utilize `Ctrl+C`.
+
+#### 4. Verificar os endpoints e a resposta
+
+Em outro terminal, execute:
+
+```bash
+curl -s http://localhost:8001/health
+```
+
+Resposta esperada:
+
+```json
+{"status":"ok"}
+```
+
+Em seguida, teste a classificação de intenção:
+
+```bash
+curl -s -X POST http://localhost:8001/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text":"I am still waiting on my card"}'
+```
+
+**Resposta observada em execução real do contêiner:**
+
+```json
+{"intent_id":11,"intent":"card_arrival"}
+```
+
+A documentação interativa também fica disponível em
+`http://localhost:8001/docs`. Nela, selecione `POST /predict`, clique
+em **Try it out**, informe o JSON da requisição e execute.
+
+#### 5. Testar localmente e solucionar problemas
+
+A suíte automatizada continua sendo executada no ambiente `uv`:
+
+```bash
+uv run pytest
+```
+
+| Sintoma | Verificação ou correção |
+| :--- | :--- |
+| `Cannot connect to the Docker daemon` | Iniciar Docker Desktop e conferir `docker info` |
+| Erro no `COPY artifacts/` durante o build | Gerar os dois artefatos com `uv run python -m banking_intent_classifier.final_training` |
+| Falha ao carregar o modelo | Verificar compatibilidade de Python, scikit-learn e joblib entre treinamento e imagem |
+| Porta `8001` ocupada | Interromper o processo existente ou publicar outra porta, por exemplo `-p 8002:8000` |
+| API não responde | Consultar a saída do contêiner e confirmar o mapeamento de portas |
+
+**Reprodutibilidade:** a sequência completa é gerar os artefatos,
+construir a imagem, iniciar o contêiner e chamar `/health` e `/predict`.
+O modelo e o JSON de classes são artefatos gerados localmente e não são
+versionados no Git. Para uma imagem atualizada após novo treinamento,
+execute novamente o `docker build`.
 
 ### Testes automatizados
 
@@ -950,11 +1059,13 @@ BANKING77 (13.083 mensagens; 77 classes)
     │     └── Weighted F1: 0,8769
     ├── Modelo joblib + metadados JSON         ✅
     ├── API FastAPI (health + predict)         ✅
+    ├── Docker (build e inferência HTTP)       ✅
     └── Testes automatizados (31 aprovados)    ✅
 ```
 
-A próxima etapa planejada é a containerização da API, seguida da
-orquestração do treinamento com Apache Airflow.
+A containerização da API foi validada com uma inferência real no Docker.
+As próximas etapas planejadas são a orquestração do treinamento com
+Apache Airflow e a evolução do CI/CD.
 
 ### 📋 Roadmap
 
@@ -988,7 +1099,7 @@ orquestração do treinamento com Apache Airflow.
     -   [x] Adicionar testes do Pipeline e do entrypoint
 -   [x] Avaliação final e detalhada das métricas do modelo
 -   [x] API de inferência
--   [ ] Containerização
+-   [x] Containerização da API com Docker
 -   [ ] Pipeline CI/CD
 -   [ ] Pipeline de treinamento com Airflow
 -   [ ] Monitoramento com Prometheus
