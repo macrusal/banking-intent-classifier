@@ -1,8 +1,9 @@
 """Treinamento do modelo de classificação."""
 
-from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
+
 
 class ModelTrainer:
     """Responsável pelo treinamento do classificador."""

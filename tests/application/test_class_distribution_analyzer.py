@@ -4,6 +4,7 @@ from banking_intent_classifier.application.class_distribution_analyzer import (
     ClassDistributionAnalyzer,
 )
 
+
 def test_should_calculate_class_distribution() -> None:
     dataset = DatasetDict(
         {

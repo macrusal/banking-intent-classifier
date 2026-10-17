@@ -1,6 +1,7 @@
 """Experimentos de pré-processamento para representação textual."""
 
 from sklearn.feature_extraction.text import TfidfVectorizer
+
 from banking_intent_classifier.application.dataset_splitter import (
     DatasetSplitter,
 )
@@ -13,6 +14,7 @@ from banking_intent_classifier.application.model_trainer import (
 from banking_intent_classifier.domain.experiment_result import (
     ExperimentResult,
 )
+
 
 class TextPreprocessingExperiment:
     """Compara configurações de representação textual."""
