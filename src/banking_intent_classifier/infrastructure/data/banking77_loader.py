@@ -33,26 +33,23 @@ def load_banking77() -> DatasetDict:
     validate_dataset(dataset)
     return dataset
 
-def validate_dataset(dataset: DatasetDict)-> None:
 
-    """
-    Valida a estrutura mínima esperada para o BANKING77.
+def validate_dataset(dataset: DatasetDict) -> None:
+    """Valida os splits e as colunas obrigatórias do BANKING77."""
 
-    Args:
-        dataset: Dataset carregado pelo Hugging Face.
-
-     Raises:
-        ValueError: Caso splits ou colunas obrigatórias estejam ausentes.
-    """
     missing_splits = EXPECTED_SPLITS - set(dataset.keys())
-    missing_columns = EXPECTED_COLUMNS - set(dataset["train"].column_names)
 
     if missing_splits:
-        raise ValueError(f"Splits obrigatórios ausentes: {sorted(missing_splits)}")
+        raise ValueError(
+            f"Splits obrigatórios ausentes: {sorted(missing_splits)}"
+        )
 
-    for split_name in EXPECTED_SPLITS:
+    for split_name in sorted(EXPECTED_SPLITS):
         columns = set(dataset[split_name].column_names)
         missing_columns = EXPECTED_COLUMNS - columns
+
         if missing_columns:
-            raise ValueError(f"Colunas obrigatórias ausentes no split "
-                             f"'{split_name}': {sorted(missing_columns)}")
+            raise ValueError(
+                f"Colunas obrigatórias ausentes no split "
+                f"'{split_name}': {sorted(missing_columns)}"
+            )

@@ -71,3 +71,13 @@ artifacts/
 # ==============================
 *.log
 logs/
+
+
+# Apache Airflow — dados e arquivos gerados localmente
+/airflow/data/
+/airflow/logs/
+
+# Credenciais e configurações locais
+.env
+.env.*
+!.env.example
