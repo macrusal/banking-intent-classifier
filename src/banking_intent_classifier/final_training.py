@@ -3,8 +3,9 @@
 
 from pathlib import Path
 
-from banking_intent_classifier.application.model_evaluator import ModelEvaluator
-from banking_intent_classifier.application.model_trainer import ModelTrainer
+from banking_intent_classifier.application.training_service import (
+    train_and_evaluate,
+)
 from banking_intent_classifier.infrastructure.data.banking77_loader import (
     load_banking77,
 )
@@ -16,42 +17,32 @@ from banking_intent_classifier.infrastructure.model_repository import (
 )
 
 ARTIFACT_PATH = Path("artifacts/baseline_pipeline.joblib")
-
 LABEL_MAPPING_PATH = Path("artifacts/label_mapping.json")
 
 
-def main() -> None:
-    """Treina no conjunto oficial e avalia no teste reservado."""
+def load_dataset():
+    """Carrega os splits oficiais do BANKING77."""
+    return load_banking77()
 
-    dataset = load_banking77()
 
-    train_split = dataset["train"]
-    test_split = dataset["test"]
-
-    pipeline = ModelTrainer.create_baseline_pipeline()
-
-    pipeline.fit(
-        train_split["text"],
-        train_split["label"],
-    )
-
-    predictions = pipeline.predict(test_split["text"])
-
-    result = ModelEvaluator.evaluate(
-        configuration="TF-IDF + Logistic Regression | avaliação oficial",
-        labels=test_split["label"],
-        predictions=predictions,
-    )
-
+def save_artifacts(pipeline, labels) -> None:
+    """Persiste o modelo e o mapeamento oficial de classes."""
     ModelRepository.save(pipeline, ARTIFACT_PATH)
-    labels = train_split.features["label"].names
-
     LabelRepository.save(labels, LABEL_MAPPING_PATH)
+
+
+def main() -> None:
+    """Executa o fluxo completo de treinamento oficial."""
+    dataset = load_dataset()
+
+    pipeline, labels, result = train_and_evaluate(dataset)
+
+    save_artifacts(pipeline, labels)
 
     print("AVALIAÇÃO FINAL — BANKING77")
     print("=" * 50)
-    print(f"Treinamento oficial: {len(train_split)}")
-    print(f"Teste oficial: {len(test_split)}")
+    print(f"Treinamento oficial: {len(dataset['train']['text'])}")
+    print(f"Teste oficial: {len(dataset['test']['text'])}")
     print(f"Accuracy: {result.accuracy:.4f}")
     print(f"Macro F1: {result.macro_f1:.4f}")
     print(f"Weighted F1: {result.weighted_f1:.4f}")

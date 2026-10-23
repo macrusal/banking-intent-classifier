@@ -9,6 +9,9 @@ clientes de serviços bancários, explorando técnicas de **Processamento
 de Linguagem Natural (NLP)** e práticas relacionadas ao ciclo de vida de
 modelos em produção.
 
+
+> **Estado mais recente (23/10/2026):** a DAG Airflow 3.1.0 `banking77_training_pipeline` executou `ingest → train → publish` com sucesso em 22/10, após correções de comunicação com a Execution API e assinatura JWT. Consulte [Execução Airflow e decisões arquiteturais](#-execução-airflow-e-decisões-arquiteturais--checkpoint-23102026). As seções anteriores registram também checkpoints históricos, que não devem ser interpretados como pendências atuais.
+
 ## 👥 Equipe
 
 | Nome | RM | E-mail | Áreas de atuação                                            |
@@ -97,6 +100,15 @@ reproduzi-la.
 | Iniciar a API de inferência | `uv run uvicorn banking_intent_classifier.presentation.api:app --reload` |
 | Testar os endpoints HTTP | `uv run pytest tests/presentation/test_api.py -v` |
 | Executar a suíte automatizada | `uv run pytest` |
+| Testar a orquestração do treinamento final | `uv run pytest tests/test_final_training.py -v` |
+| Testar a integração ponta a ponta do Airflow | `uv run pytest tests/application/test_training_pipeline_integration.py -v` |
+| Validar configuração Docker Compose do Airflow | `docker compose -f compose.airflow.yaml config --quiet` |
+| Subir o ambiente Airflow | `docker compose -f compose.airflow.yaml up -d --build` |
+| Conferir DAGs e erros de importação | `docker compose -f compose.airflow.yaml exec airflow-scheduler airflow dags list-import-errors` |
+| Testar as operações preparatórias do Airflow | `uv run pytest tests/application/test_training_pipeline.py tests/test_dataset_repository.py -v` |
+| Verificar a qualidade do código com Ruff | `uv run ruff check .` |
+| Reproduzir as verificações do CI com dependências travadas | `uv sync --frozen && uv run --frozen ruff check . && uv run --frozen pytest` |
+| Construir a imagem Docker utilizada no CI (após gerar artefatos) | `docker build -t banking-intent-classifier:ci .` |
 | Construir a imagem Docker (após gerar os artefatos) | `docker build -t banking-intent-classifier:local .` |
 | Iniciar a API no Docker | `docker run --rm --name banking-intent-api -p 8001:8000 banking-intent-classifier:local` |
 | Testar a API no Docker | `curl -s http://localhost:8001/health` |
@@ -166,11 +178,13 @@ tokens mais frequentes.
 uv run pytest
 ```
 
-No checkpoint documentado:
+No checkpoint histórico desta etapa inicial:
 
 ```text
 20 passed
 ```
+
+Na validação de 17/10/2026, a suíte completa apresentou **31 testes aprovados**. Em **21/10/2026**, após a preparação do pipeline para o Airflow, a execução local apresentou **35 testes aprovados**, sem falhas, e um aviso de depreciação do Starlette/httpx. O comando de reprodução permanece o mesmo.
 
 O tempo total pode variar entre máquinas.
 
@@ -488,7 +502,7 @@ uv run pytest tests/test_final_training.py tests/test_model_repository.py tests/
 uv run pytest
 ```
 
-**Última execução registrada:** 31 testes aprovados, nenhuma falha,
+**Execução registrada em 17/10/2026:** 31 testes aprovados, nenhuma falha,
 1 aviso `StarletteDeprecationWarning` relacionado ao uso de `httpx`
 com `starlette.testclient`. O aviso não impediu a execução, mas deverá
 ser revisado na etapa de atualização de dependências/CI.
@@ -506,6 +520,146 @@ ser revisado na etapa de atualização de dependências/CI.
 A API e os testes de integração podem ser reproduzidos sem baixar o
 dataset, desde que os artefatos já tenham sido gerados; os testes
 substituem o carregamento dos artefatos por mocks.
+
+---
+
+## 🔄 Integração Contínua (CI/CD) — GitHub Actions
+
+O projeto utiliza **GitHub Actions** para validar automaticamente a
+qualidade do código, os testes e a construção da imagem Docker. O workflow
+versionado está em [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+### Eventos e verificações
+
+O workflow é acionado em `push` e `pull_request` para as branches `dev` e
+`main`, além de permitir execução manual por `workflow_dispatch`.
+
+| Job | Verificação | Comando ou mecanismo |
+| :--- | :--- | :--- |
+| `lint` | Análise estática do código | `uv run --frozen ruff check .` |
+| `tests` | Suíte automatizada | `uv run --frozen pytest` |
+| `docker-build` | Treinamento, verificação dos artefatos e construção da imagem | `uv run --frozen python -m banking_intent_classifier.final_training` e `docker/build-push-action@v6` |
+| `validate-gitflow` | Verifica a origem dos PRs para `main` | Validação de `github.base_ref` e `github.head_ref` |
+
+Os **quatro jobs são independentes e podem executar em paralelo**. Não há
+uma dependência sequencial configurada entre lint, testes e build. O build
+valida a construção da imagem, mas **não publica** a imagem em registry
+(`push: false`) nem realiza deploy.
+
+### Política de integração GitFlow
+
+O job `validate-gitflow` verifica a origem de Pull Requests: quando o destino
+é `main`, a origem deve ser `dev`. PRs de `feature/*` ou `hotfix/*`
+diretamente para `main` são reprovados pelo job. PRs para `dev` e execuções
+de `push` não são bloqueados por essa verificação.
+
+```text
+feature/* → dev → main
+```
+
+**Importante:** a reprovação de um job só impede o merge quando o respectivo
+check é configurado como obrigatório na proteção da `main` (Ruleset ou
+Branch protection). Confirme no GitHub que `GitFlow - Validar origem do PR`
+está entre os checks exigidos. A política não equivale a uma restrição
+independente de alterações no próprio workflow.
+
+### Reprodução local do CI
+
+Execute na raiz do repositório, com `uv`, Python 3.12 ou superior e Docker
+disponíveis:
+
+```bash
+# Instalar as dependências conforme o lockfile
+uv sync --frozen
+
+# Reproduzir os dois controles de qualidade
+uv run --frozen ruff check .
+uv run --frozen pytest
+
+# Gerar os artefatos que não são versionados no Git
+uv run --frozen python -m banking_intent_classifier.final_training
+
+# Confirmar a presença dos arquivos gerados
+test -s artifacts/baseline_pipeline.joblib
+test -s artifacts/label_mapping.json
+
+# Reproduzir o build da imagem
+docker build -t banking-intent-classifier:ci .
+```
+
+O `docker-build` do GitHub Actions executa o treinamento **antes** de
+construir a imagem, pois a pasta `artifacts/` é ignorada pelo Git. O job
+valida que `baseline_pipeline.joblib` e `label_mapping.json` existem e
+não estão vazios. A execução requer acesso ao dataset BANKING77 no
+Hugging Face Hub; o download e o treinamento podem aumentar o tempo de CI.
+
+### Evidências de execução
+
+Em **17/10/2026**, as três verificações originais passaram no Pull Request de
+adição do build Docker e novamente após o merge na branch `dev`, conforme
+validação informada e capturas do GitHub Actions:
+
+| Verificação no Pull Request | Resultado | Duração observada |
+| :--- | :--- | ---: |
+| Ruff — Análise estática | Aprovado | 11 s |
+| Pytest — Testes automatizados | Aprovado | 16 s |
+| Docker — Build da imagem | Aprovado | 35 s |
+
+A suíte completa também foi executada localmente com **31 testes
+aprovados** e um aviso de depreciação do Starlette/httpx, sem falhas.
+
+Para consultar as execuções e os logs dos jobs, acesse a
+[aba Actions do repositório](https://github.com/macrusal/banking-intent-classifier/actions).
+Os registros de execução no GitHub são a evidência verificável; os tempos
+acima são apenas observações e podem variar entre execuções.
+
+O job `validate-gitflow` foi adicionado posteriormente; seu histórico e
+resultado devem ser consultados na aba Actions.
+
+Esta entrega atende à frente técnica de **CI/CD** do Tech Challenge —
+Fase 3. A documentação das demais frentes da rubrica será incorporada
+conforme suas validações forem concluídas.
+
+---
+
+## 🛠️ Preparação do pipeline de treinamento para Airflow (21/10/2026)
+
+A preparação das operações reutilizáveis foi concluída na branch de funcionalidade, **sem implantação ou execução de DAG no Apache Airflow até este checkpoint**. A decisão é manter a lógica de Machine Learning independente do orquestrador: a futura DAG apenas coordenará chamadas já existentes.
+
+| Componente | Responsabilidade |
+| :--- | :--- |
+| `application/training_service.py` | `train_and_evaluate(dataset)`: criar o baseline, ajustar, prever, avaliar e recuperar nomes das classes |
+| `application/training_pipeline.py` | Expor `ingest_data`, `train_model` e `save_artifacts` como operações reutilizáveis |
+| `infrastructure/data/dataset_repository.py` | Salvar e carregar `DatasetDict` com validação dos splits e colunas |
+| `final_training.py` | Manter o comando independente para treinamento, avaliação e persistência oficiais |
+
+### Fluxo planejado
+
+```text
+ingest_data(dataset_path)
+          ↓
+train_model(dataset_path, output_path)
+          ↓
+save_artifacts(training_path, artifact_path, label_mapping_path)
+```
+
+A ingestão persiste os dados no disco; o treinamento gera `pipeline.joblib`, `label_mapping.json` e `metrics.json`; a publicação valida os intermediários e copia modelo e classes para os caminhos utilizados pela API. A futura DAG deverá compartilhar os arquivos entre tarefas sem transferir o dataset inteiro por XCom. **O teste de integração entre as três operações e a DAG ainda estão pendentes.** A publicação atual por cópia de arquivos não é atômica.
+
+### Reproduzir as verificações disponíveis
+
+```bash
+uv run ruff check .
+uv run pytest tests/test_final_training.py -v
+uv run pytest tests/application/test_training_pipeline.py tests/test_dataset_repository.py -v
+uv run pytest
+uv run python -m banking_intent_classifier.final_training
+```
+
+Em **21/10/2026**, a execução local de Ruff e da suíte completa foi reportada com **35 testes aprovados, 0 falhas e 1 aviso de depreciação Starlette/httpx**. O comando `final_training` reproduz as métricas oficiais documentadas anteriormente (accuracy, macro F1 e weighted F1 de `0.8769`). A execução isolada das operações preparatórias e seu teste ponta a ponta não devem ser tratados como validados até que haja evidência específica.
+
+**Decisão de testes:** após a extração de `train_and_evaluate()` para `training_service.py`, o teste da CLI passou a verificar a delegação e a persistência, sem esperar chamadas internas a `fit()` e `predict()`. O dataset simulado foi substituído por `Dataset`/`DatasetDict` do Hugging Face, porque `len()` em um dicionário comum conta chaves e não registros. A cobertura específica das chamadas internas do serviço é um próximo passo.
+
+Para justificativas e lições aprendidas, consulte [Preparação do pipeline para Airflow](docs/study-notes/airflow-training-pipeline.md) e o [índice de notas de estudo](docs/study-notes/README.md).
 
 ---
 
@@ -684,8 +838,7 @@ e preparada para as demais etapas previstas no Tech Challenge.
 ---
 ## 🚀 Status do Projeto
 
-> 🚧 **Em desenvolvimento — EDA concluída e baseline formal validado
-> internamente; avaliação no teste oficial pendente**
+> 🚧 **Em desenvolvimento — EDA, baseline, avaliação oficial, API, Docker, CI e DAG Airflow executada com sucesso; monitoramento, ONNX, benchmark e arquitetura cloud pendentes.**
 
 O desenvolvimento está sendo realizado de forma incremental, mantendo o
 histórico de commits e Pull Requests como registro da evolução técnica e
@@ -1041,7 +1194,7 @@ regra geral para problemas de classificação textual.
 A EDA, o experimento de stopwords, o baseline formal e a avaliação oficial
 foram concluídos. O modelo final foi persistido junto ao mapeamento das
 77 classes e disponibilizado por uma API FastAPI. A suíte automatizada
-possui **31 testes aprovados** na execução registrada em 17/10/2026.
+possuía **31 testes aprovados** em 17/10/2026; em 21/10/2026, após a preparação para o Airflow, foram **35 testes aprovados**.
 
 ```text
 BANKING77 (13.083 mensagens; 77 classes)
@@ -1060,12 +1213,17 @@ BANKING77 (13.083 mensagens; 77 classes)
     ├── Modelo joblib + metadados JSON         ✅
     ├── API FastAPI (health + predict)         ✅
     ├── Docker (build e inferência HTTP)       ✅
-    └── Testes automatizados (31 aprovados)    ✅
+    ├── Testes automatizados (35 aprovados)    ✅
+    └── CI/CD (Ruff + Pytest + Docker Build)   ✅
+        └── Validação de origem GitFlow        ✅
 ```
 
 A containerização da API foi validada com uma inferência real no Docker.
+O pipeline de CI/CD foi validado em Pull Request e após merge na `dev`,
+e posteriormente promovido para `main`. A validação GitFlow foi
+incorporada ao workflow; a obrigatoriedade do check depende do Ruleset.
 As próximas etapas planejadas são a orquestração do treinamento com
-Apache Airflow e a evolução do CI/CD.
+Apache Airflow, monitoramento e otimização de latência.
 
 ### 📋 Roadmap
 
@@ -1100,10 +1258,143 @@ Apache Airflow e a evolução do CI/CD.
 -   [x] Avaliação final e detalhada das métricas do modelo
 -   [x] API de inferência
 -   [x] Containerização da API com Docker
--   [ ] Pipeline CI/CD
--   [ ] Pipeline de treinamento com Airflow
+-   [x] Pipeline CI/CD
+    -   [x] Ruff — análise estática
+    -   [x] Pytest — testes automatizados
+    -   [x] Geração e validação dos artefatos no runner
+    -   [x] Docker Build — construção da imagem
+    -   [x] Validação em Pull Request e após merge na `dev`
+    -   [x] Promoção do workflow para `main`
+    -   [x] Job de validação de origem dos PRs (GitFlow)
+-   [x] Preparar operações reutilizáveis para o Airflow (sem DAG)
+-   [x] Teste de integração ponta a ponta das operações
+-   [x] Pipeline de treinamento com Airflow (execução manual validada em 22/10/2026)
 -   [ ] Monitoramento com Prometheus
 -   [ ] Dashboards no Grafana
 -   [ ] Conversão e validação ONNX
 -   [ ] Benchmark de latência
 -   [ ] Documentação e resultados finais
+
+
+---
+## Checkpoint operacional — Airflow 3.1.0 (22–23/10/2026)
+
+> **Este checkpoint atualiza o estado histórico descrito nas seções anteriores.** A preparação de 21/10 era um retrato anterior à execução da DAG; não representa o estado atual.
+
+**Confirmado por execução na interface Airflow em 22/10:** `banking77_training_pipeline` com tarefas `ingest`, `train` e `publish` em **success**, uma tentativa por tarefa, duração total aproximada de **30 segundos**. A imagem da interface é a evidência da orquestração; a verificação pós-execução dos arquivos e de `metrics.json` ainda precisa ser registrada. **Não interpretar os artefatos já existentes como prova de sua geração pela DAG** até verificar datas e conteúdo.
+
+**Implementação:** `airflow/dags/banking77_training_pipeline.py`, `airflow/Dockerfile`, `compose.airflow.yaml`, `application/training_pipeline.py` e teste de integração `tests/application/test_training_pipeline_integration.py`. DAG manual (`schedule=None`), `catchup=False`, `max_active_runs=1`; identificador de execução sanitizado para separar datasets e métricas intermediários em `airflow/data/runs/`. Os artefatos publicados ficam em `artifacts/` para a API.
+
+**Arquitetura local:** Airflow 3.1.0, `LocalExecutor`, PostgreSQL 16, serviços `postgres`, `airflow-init`, `airflow-api-server`, `airflow-scheduler`, `airflow-dag-processor`; UI em http://localhost:8080. A execução foi inicialmente bloqueada por `Connection refused` na Execution API e, depois, `Invalid auth token: Signature verification failed`. Foram adotados `AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-api-server:8080/execution/` e **a mesma** `AIRFLOW__API_AUTH__JWT_SECRET` nos serviços via variável `${AIRFLOW_JWT_SECRET}` em `.env` local ignorado pelo Git. **Nunca versionar a chave JWT nem o `.env`.**
+
+### Procedimento de reprodução e diagnóstico
+
+```bash
+# Na raiz do projeto; exige Docker Compose e arquivo .env com AIRFLOW_JWT_SECRET.
+# Gerar .env somente se ainda não existir (não sobrescrever segredos existentes):
+test -e .env || python3 -c "import secrets; print('AIRFLOW_JWT_SECRET=' + secrets.token_hex(32))" > .env
+# Garantir .env no .gitignore e verificar com: git check-ignore -v .env
+docker compose -f compose.airflow.yaml config --quiet
+docker compose -f compose.airflow.yaml up -d --build
+docker compose -f compose.airflow.yaml ps
+docker compose -f compose.airflow.yaml exec airflow-scheduler airflow dags list-import-errors
+# Na UI, despausar e acionar manualmente banking77_training_pipeline.
+# Conferir arquivos e métricas da execução:
+ls -lh artifacts/baseline_pipeline.joblib artifacts/label_mapping.json
+find airflow/data/runs -name metrics.json -print -exec cat {} \;
+# Logs de diagnóstico:
+docker compose -f compose.airflow.yaml logs --tail=150 airflow-scheduler airflow-api-server
+# Testes e lint locais:
+uv run ruff check .
+uv run pytest
+```
+
+A senha administrativa do Airflow deve ser consultada nos logs/configuração local; não a registrar em documentação pública. Não executar `docker compose down -v` durante diagnósticos, pois remove o volume PostgreSQL. Para verificar runs sem depender da CLI ou de links com `+` mal codificado:
+
+```bash
+docker compose -f compose.airflow.yaml exec postgres psql -U airflow -d airflow -c "SELECT dag_id, run_id, state FROM dag_run WHERE dag_id = 'banking77_training_pipeline' ORDER BY id DESC LIMIT 10;"
+```
+
+**Qualidade:** após inclusão do teste de integração, foi relatada validação local com **36 testes aprovados**, Ruff aprovado e `git diff --check` sem problemas. Recomenda-se repetir esses comandos antes do commit. O aviso de depreciação Starlette/httpx não bloqueou os testes.
+
+**Rubrica (situação técnica, sem presumir nota):** Airflow 15% demonstrado por execução; CI/CD 15% com workflows implementados, sujeito à verificação de evidências; benchmark + ONNX 20% parcial (baseline pronto, ONNX/benchmark pendentes); Prometheus/Grafana 20% pendente; arquitetura cloud 15% pendente; vídeo STAR 15% pendente. Restam validação pós-execução de artefatos/métricas, documentação final e evidências reproduzíveis.
+
+**Fluxo de integração:** manter branch `feature/airflow-training-pipeline`; executar `uv run ruff check .`, `uv run pytest`, `git diff --check`, conferir `git status` e alterações; commit em PT-BR; abrir PR para `dev` e posteriormente `dev → main` conforme GitFlow. Sem coautoria automática em commits.
+
+
+## 🧭 Execução Airflow e decisões arquiteturais — checkpoint 23/10/2026
+
+### Evidência e alcance da entrega
+
+Em **22/10/2026**, a interface do Airflow registrou uma execução manual bem-sucedida de `banking77_training_pipeline`: `ingest` (~12 s), `train` (~14 s) e `publish` (~1,9 s), cada tarefa em uma tentativa; **30 segundos de duração total**. Isso comprova a execução orquestrada naquele ambiente. A verificação independente das métricas e da data de atualização dos artefatos após a DAG ainda precisa ser registrada; não atribuir automaticamente à DAG arquivos que já existiam antes da execução.
+
+### Decisões de arquitetura e justificativas
+
+| Decisão | Justificativa e consequência |
+| :--- | :--- |
+| Separar `application/training_service.py` e `application/training_pipeline.py` da DAG | A lógica de ML permanece testável e reutilizável sem dependência do Airflow; a DAG apenas coordena as operações. |
+| DAG TaskFlow com `ingest → train → publish` | Etapas observáveis, reexecutáveis e com responsabilidades independentes. |
+| `schedule=None`, `catchup=False`, `max_active_runs=1` | Execução manual controlada; não realizar backfill nem permitir duas execuções simultâneas que disputem os artefatos finais. |
+| Persistir `DatasetDict` com `DatasetRepository` | Evitar transportar milhares de registros por XCom; tarefas compartilham **caminhos de arquivos**, não o dataset inteiro. |
+| Diretório intermediário por `run_id` sanitizado em `airflow/data/runs/` | Isolar datasets e métricas intermediárias de cada execução. |
+| `train_model` salva `pipeline.joblib`, `label_mapping.json`, `metrics.json` no diretório intermediário | Tornar os resultados da avaliação inspecionáveis antes da publicação. |
+| `save_artifacts` valida e copia modelo e classes para `artifacts/` | Preservar os caminhos consumidos pela API FastAPI. A publicação por cópia **não é atômica**; melhorar se houver concorrência ou operação em produção. |
+| Airflow 3.1.0 + `LocalExecutor` + PostgreSQL 16 em Compose separado | Orquestração local reprodutível sem misturar o contêiner de inferência com o de treinamento. |
+| `AIRFLOW__CORE__EXECUTION_API_SERVER_URL` apontando para `http://airflow-api-server:8080/execution/` | A comunicação entre contêineres usa DNS interno Docker, não `localhost`. Resolveu a falha inicial de conexão, revelando o erro seguinte de autenticação. |
+| `AIRFLOW__API_AUTH__JWT_SECRET` compartilhado entre serviços | Corrigiu `Invalid auth token: Signature verification failed`. O segredo é fornecido por `${AIRFLOW_JWT_SECRET}` em `.env` **local, ignorado pelo Git**. |
+| Montagens `airflow/dags`, `airflow/logs`, `airflow/data` e `artifacts` | Disponibilizar código, dados intermediários, logs e modelos no host e nos serviços necessários. |
+
+### Reproduzir a execução em outra máquina
+
+Pré-requisitos: Docker Desktop/Engine e Compose, portas locais disponíveis, acesso ao Hugging Face Hub. Na raiz do repositório, garantir que `.env` esteja no `.gitignore`. Criar a variável somente quando o arquivo ainda não existir:
+
+```bash
+test -e .env || python3 -c "import secrets; print('AIRFLOW_JWT_SECRET=' + secrets.token_hex(32))" > .env
+git check-ignore -v .env
+docker compose -f compose.airflow.yaml config --quiet
+docker compose -f compose.airflow.yaml up -d --build
+docker compose -f compose.airflow.yaml ps
+docker compose -f compose.airflow.yaml exec airflow-scheduler airflow dags list-import-errors
+```
+
+Se `.env` já existir, **verifique localmente** se contém `AIRFLOW_JWT_SECRET`; não sobrescreva outros segredos. Acesse <http://localhost:8080>, autentique-se com a credencial administrativa gerada localmente, despause a DAG se necessário e acione `banking77_training_pipeline`. Não versionar credenciais nem copiar seus valores para logs públicos.
+
+Verifique o resultado e as evidências:
+
+```bash
+ls -lh artifacts/baseline_pipeline.joblib artifacts/label_mapping.json
+find airflow/data/runs -name metrics.json -print -exec cat {} \;
+docker compose -f compose.airflow.yaml exec postgres \
+  psql -U airflow -d airflow \
+  -c "SELECT dag_id, run_id, state FROM dag_run WHERE dag_id = 'banking77_training_pipeline' ORDER BY id DESC LIMIT 10;"
+uv run ruff check .
+uv run pytest tests/application/test_training_pipeline_integration.py -v
+uv run pytest
+```
+
+A consulta SQL é somente de leitura e evita depender de links de `run_id` contendo `+`, que podem ser interpretados incorretamente como espaço na URL. Os resultados da avaliação oficial documentada são `accuracy = macro_f1 = weighted_f1 = 0.8769`; compare os valores de `metrics.json` com essa referência **após efetuar a verificação**.
+
+### Diagnóstico e segurança
+
+```bash
+docker compose -f compose.airflow.yaml logs --tail=150 airflow-scheduler airflow-api-server
+docker compose -f compose.airflow.yaml exec airflow-scheduler \
+  airflow config get-value core execution_api_server_url
+```
+
+Histórico de incidentes: primeiro `httpx.ConnectError: [Errno 111] Connection refused`; depois `Invalid auth token: Signature verification failed`. Em ambos os casos, a tarefa `ingest` falhou antes de executar o código do dataset, e os logs de tentativa estavam vazios. A mensagem `LocalExecutor ... state failed ... state queued` era consequência da falha de inicialização, não diagnóstico de erro do BANKING77. A correção foi validada pela execução posterior bem-sucedida. **Não usar `docker compose down -v`** para investigar: isso apagaria o volume de metadados do PostgreSQL.
+
+### Rubrica e próximos passos
+
+| Frente | Peso | Estado técnico em 23/10/2026 |
+| :--- | ---: | :--- |
+| Airflow | 15% | DAG executada com sucesso; faltam conferência final de artefatos/métricas e evidências consolidadas. |
+| CI/CD | 15% | GitHub Actions com lint, testes, build e política GitFlow; verificar evidências do checkpoint atual. |
+| Benchmark e ONNX | 20% | Baseline pronto; conversão e comparação ainda não executadas. |
+| Prometheus e Grafana | 20% | Pendentes. |
+| Arquitetura cloud | 15% | Documentação específica da solução cloud pendente. |
+| Vídeo STAR | 15% | Pendente. |
+
+Os percentuais são **pesos da rubrica**, não notas atribuídas. A última suíte local informada após o teste de integração foi de **36 testes aprovados**; executar novamente antes do commit. Continuar na branch `feature/airflow-training-pipeline` e promover por PR `feature/* → dev → main`, com mensagens de commit em português e sem coautoria automática.
+
+**Notas relacionadas:** [índice de estudos](docs/study-notes/README.md), [nota de pipeline Airflow](docs/study-notes/airflow-training-pipeline.md) e [arquitetura](docs/architecture.md).
