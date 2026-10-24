@@ -8,6 +8,8 @@ from skl2onnx.common.data_types import StringTensorType
 from sklearn.pipeline import Pipeline
 
 INPUT_NAME = "text"
+# Nome fixo: sem ele, o skl2onnx gera um UUID por exportação e o hash muda.
+GRAPH_NAME = "banking77_intent_classifier"
 EXECUTION_PROVIDERS = ["CPUExecutionProvider"]
 
 
@@ -31,7 +33,18 @@ class OnnxModelRepository:
             model,
             initial_types=[(INPUT_NAME, StringTensorType([None, 1]))],
             options={id(model[-1]): {"zipmap": False}},
+            name=GRAPH_NAME,
         )
+
+        # A ordem dos opsets vem de um set e varia com o PYTHONHASHSEED.
+        opsets = sorted(
+            (opset.domain, opset.version)
+            for opset in onnx_model.opset_import
+        )
+        del onnx_model.opset_import[:]
+
+        for domain, version in opsets:
+            onnx_model.opset_import.add(domain=domain, version=version)
 
         path.write_bytes(onnx_model.SerializeToString())
 

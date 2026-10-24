@@ -8,6 +8,7 @@ import pytest
 pytest.importorskip("onnxruntime")
 pytest.importorskip("skl2onnx")
 
+import onnx
 from onnx import TensorProto, helper
 
 from banking_intent_classifier.application.model_trainer import (
@@ -65,6 +66,34 @@ def test_should_create_parent_directory_on_export(tmp_path: Path) -> None:
     OnnxModelRepository.export(create_trained_pipeline(), artifact_path)
 
     assert artifact_path.is_file()
+
+
+def test_should_export_deterministic_bytes(tmp_path: Path) -> None:
+    """Verifica que exportações do mesmo Pipeline geram arquivos idênticos."""
+
+    pipeline = create_trained_pipeline()
+    first_path = tmp_path / "first.onnx"
+    second_path = tmp_path / "second.onnx"
+
+    OnnxModelRepository.export(pipeline, first_path)
+    OnnxModelRepository.export(pipeline, second_path)
+
+    assert first_path.read_bytes() == second_path.read_bytes()
+
+
+def test_should_export_opsets_in_sorted_order(tmp_path: Path) -> None:
+    """Verifica a ordem estável dos opsets, independente do processo."""
+
+    artifact_path = tmp_path / "baseline_pipeline.onnx"
+
+    OnnxModelRepository.export(create_trained_pipeline(), artifact_path)
+
+    opsets = [
+        (opset.domain, opset.version)
+        for opset in onnx.load(artifact_path).opset_import
+    ]
+
+    assert opsets == sorted(opsets)
 
 
 def test_should_reject_export_of_non_pipeline(tmp_path: Path) -> None:
