@@ -9,6 +9,12 @@ clientes de serviços bancários, explorando técnicas de **Processamento
 de Linguagem Natural (NLP)** e práticas relacionadas ao ciclo de vida de
 modelos em produção.
 
+## 👥 Equipe
+
+| Nome | RM | E-mail | Áreas de atuação                                            |
+| :--- | :---: | :--- |:------------------------------------------------------------|
+| **Marcelo da Cruz Salvador** | **RM375166** | [macrusal@gmail.com](mailto:macrusal@gmail.com) | Software/Backend Engineering · Data · Machine Learning · MLOps |
+
 ## 🎯 Contexto e problema
 
 Canais digitais de atendimento bancário recebem mensagens escritas de
@@ -154,10 +160,14 @@ banking-intent-classifier/
 ├── docs/
 │   ├── architecture.md                   # Arquitetura e responsabilidades
 │   ├── entrega.md                        # Rubrica e checkpoints
+│   ├── onnx-benchmark.md                 # ONNX, equivalência e benchmark
 │   ├── operacao-airflow.md               # Operação e diagnóstico
 │   └── study-notes/                     # Histórico técnico detalhado
 ├── src/banking_intent_classifier/
 │   ├── application/
+│   │   ├── inference_benchmark.py        # Latência e throughput
+│   │   ├── model_equivalence.py          # Equivalência sklearn × ONNX
+│   │   ├── onnx_prediction_service.py    # Inferência com ONNX Runtime
 │   │   ├── prediction_service.py         # Inferência
 │   │   ├── training_pipeline.py          # Operações reutilizáveis da DAG
 │   │   └── training_service.py           # Treinamento e avaliação
@@ -165,6 +175,7 @@ banking-intent-classifier/
 │   ├── infrastructure/
 │   │   ├── model_repository.py           # Persistência do modelo
 │   │   ├── label_repository.py           # Mapeamento das classes
+│   │   ├── onnx_model_repository.py      # Exportação e carga ONNX
 │   │   └── data/
 │   │       ├── banking77_loader.py       # Fonte Hugging Face
 │   │       └── dataset_repository.py     # Persistência do dataset
@@ -173,13 +184,14 @@ banking-intent-classifier/
 │   ├── baseline.py                       # Baseline reproduzível
 │   ├── experiment.py                     # Experimentos textuais
 │   ├── final_training.py                 # CLI do treinamento final
-│   └── main.py                           # CLI de EDA
+│   ├── main.py                           # CLI de EDA
+│   └── onnx_benchmark.py                 # CLI de ONNX e benchmark
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                        # Lint, testes, build e política GitFlow
 ├── tests/                                # Testes automatizados
 ├── Dockerfile                            # Imagem da API de inferência
-├── pyproject.toml                        # Dependências e ferramentas
+├── pyproject.toml                        # Dependências, grupo onnx e ferramentas
 └── uv.lock                               # Resolução de dependências
 ```
 
@@ -190,6 +202,7 @@ banking-intent-classifier/
 | [`docs/architecture.md`](docs/architecture.md) | Camadas, responsabilidades e decisões | Entender a organização do código |
 | [`docs/study-notes/README.md`](docs/study-notes/README.md) | Índice das notas de decisões técnicas | Investigar por que cada escolha foi feita |
 | [`docs/operacao-airflow.md`](docs/operacao-airflow.md) | Arquitetura local, incidentes e diagnóstico | Subir ou depurar o Airflow |
+| [`docs/onnx-benchmark.md`](docs/onnx-benchmark.md) | Exportação ONNX, equivalência, benchmark e limitações | Reproduzir ou interpretar a comparação Scikit-learn × ONNX |
 | [`docs/entrega.md`](docs/entrega.md) | Rubrica, checkpoints e pendências | Acompanhar a entrega acadêmica |
 
 ## 🚀 Setup rápido
@@ -206,11 +219,11 @@ O projeto utiliza o **uv** para gerenciamento do ambiente Python e das
 dependências. As dependências estão declaradas no `pyproject.toml` e as
 versões resolvidas são mantidas no `uv.lock`.
 
-> **Ambiente validado durante o desenvolvimento:** `uv 0.12.13`, Python
-> `3.14.5` executado pelo ambiente gerenciado pelo `uv` e
-> `pytest 9.1.1`. O projeto declara `requires-python = ">=3.12"`;
-> portanto, Python `3.14.5` é a versão validada nesta execução, e não
-> uma exigência exclusiva.
+> **Ambiente validado em 24/10/2026:** `uv 0.12.13`, Python `3.12.2`
+> gerenciado pelo `uv` e `pytest 9.1.1`, alinhado ao Python 3.12 usado
+> no CI e nas imagens Docker. O projeto declara
+> `requires-python = ">=3.12"`. Até 23/10/2026 o ambiente local usava
+> Python `3.14.5` (registro histórico).
 
 ### Clonar o repositório
 
@@ -222,17 +235,18 @@ cd banking-intent-classifier
 ### Sincronizar o ambiente
 
 ```bash
-uv sync
+uv sync --python 3.12
 ```
 
-Saída observada no ambiente validado:
+Para exportar o modelo para ONNX e executar o benchmark, sincronize
+também o grupo opcional `onnx`, que não faz parte da imagem da API:
 
-```text
-Resolved 55 packages
-Checked 53 packages
+```bash
+uv sync --python 3.12 --group onnx
 ```
 
-Os tempos exibidos pelo `uv` podem variar entre ambientes.
+As quantidades de pacotes e os tempos exibidos pelo `uv` variam conforme
+o lockfile e o ambiente.
 
 ### Validar o ambiente
 
@@ -246,7 +260,7 @@ Versões observadas:
 
 ```text
 uv 0.12.13
-Python 3.14.5
+Python 3.12.2
 pytest 9.1.1
 ```
 
@@ -266,6 +280,9 @@ pytest 9.1.1
 | Comparar configurações de stopwords | `uv run python -m banking_intent_classifier.experiment` |
 | Treinar e validar o baseline formal | `uv run python -m banking_intent_classifier.baseline` |
 | Treinar, avaliar e persistir o modelo final e as 77 classes | `uv run python -m banking_intent_classifier.final_training` |
+| Sincronizar o grupo opcional ONNX | `uv sync --group onnx` |
+| Exportar para ONNX, verificar equivalência e medir desempenho | `uv run --group onnx python -m banking_intent_classifier.onnx_benchmark` |
+| Testar exportação, equivalência e benchmark ONNX | `uv run --group onnx pytest tests/test_onnx_model_repository.py tests/test_onnx_benchmark.py tests/application/test_onnx_prediction_service.py tests/application/test_model_equivalence.py tests/application/test_inference_benchmark.py -v` |
 | Iniciar a API de inferência | `uv run uvicorn banking_intent_classifier.presentation.api:app --reload` |
 | Testar os endpoints HTTP | `uv run pytest tests/presentation/test_api.py -v` |
 | Executar a suíte automatizada | `uv run pytest` |
@@ -276,7 +293,7 @@ pytest 9.1.1
 | Conferir DAGs e erros de importação | `docker compose -f compose.airflow.yaml exec airflow-scheduler airflow dags list-import-errors` |
 | Testar as operações preparatórias do Airflow | `uv run pytest tests/application/test_training_pipeline.py tests/test_dataset_repository.py -v` |
 | Verificar a qualidade do código com Ruff | `uv run ruff check .` |
-| Reproduzir as verificações do CI com dependências travadas | `uv sync --frozen && uv run --frozen ruff check . && uv run --frozen pytest` |
+| Reproduzir as verificações do CI com dependências travadas | `uv sync --frozen --group onnx && uv run --frozen ruff check . && uv run --frozen --group onnx pytest` |
 | Construir a imagem Docker utilizada no CI (após gerar artefatos) | `docker build -t banking-intent-classifier:ci .` |
 | Construir a imagem Docker (após gerar os artefatos) | `docker build -t banking-intent-classifier:local .` |
 | Iniciar a API no Docker | `docker run --rm --name banking-intent-api -p 8001:8000 banking-intent-classifier:local` |
@@ -354,6 +371,12 @@ uv run pytest
 ```
 
 A suíte completa passa sem falhas, com um aviso de depreciação do Starlette/httpx relacionado ao uso de `httpx` com `starlette.testclient`.
+
+Sem o grupo `onnx`, os testes que exigem `onnxruntime` e `skl2onnx` são ignorados (`pytest.importorskip`). Para executar a suíte completa, como no CI:
+
+```bash
+uv run --group onnx pytest
+```
 
 A contagem de testes não é fixada neste README porque evolui a cada feature; o comando acima é a fonte da informação. O tempo total pode variar entre máquinas.
 
@@ -676,6 +699,27 @@ Acesse `http://localhost:8080` e acione a DAG manualmente. Antes, configure o se
 
 **Detalhes de incidentes, diagnóstico, reprodução, verificação de hashes e segurança:** [`docs/operacao-airflow.md`](docs/operacao-airflow.md).
 
+## 🧠 ONNX e benchmark de inferência
+
+O `Pipeline` treinado é exportado para ONNX com `skl2onnx` e executado com ONNX Runtime (`CPUExecutionProvider`). A CLI verifica o mapeamento das 77 classes, compara as predições com o Scikit-learn no split oficial de teste e mede latência e throughput dos dois modelos nas mesmas condições.
+
+```bash
+uv sync --group onnx
+uv run python -m banking_intent_classifier.final_training
+uv run --group onnx python -m banking_intent_classifier.onnx_benchmark
+```
+
+Saídas: `artifacts/baseline_pipeline.onnx` e `artifacts/onnx_benchmark.json`, com ambiente, hashes, parâmetros, equivalência e medições.
+
+Em 5 execuções locais em 24/10/2026 (macOS Intel, Python 3.12.2, `onnxruntime 1.23.2`):
+
+- **Equivalência:** 100% de concordância nas 3.080 amostras de teste, sem divergências, e métricas idênticas às do Scikit-learn.
+- **Latência individual:** ONNX Runtime de 4 a 7 vezes menor nos percentis p50/p95/p99.
+- **Throughput em lote:** vantagem pequena e instável para o ONNX (1,2% a 9,0%).
+- **Tamanho:** `.onnx` cerca de 36% menor que o `.joblib`.
+
+Os resultados valem para o ambiente medido; a API continua servindo o `.joblib`. **Metodologia, tabelas completas, hashes, incidentes e limitações:** [`docs/onnx-benchmark.md`](docs/onnx-benchmark.md).
+
 ## 🔄 Integração Contínua (CI/CD) — GitHub Actions
 
 O projeto utiliza **GitHub Actions** para validar automaticamente a
@@ -690,7 +734,7 @@ O workflow é acionado em `push` e `pull_request` para as branches `dev` e
 | Job | Verificação | Comando ou mecanismo |
 | :--- | :--- | :--- |
 | `lint` | Análise estática do código | `uv run --frozen ruff check .` |
-| `tests` | Suíte automatizada | `uv run --frozen pytest` |
+| `tests` | Suíte automatizada, com o grupo opcional `onnx` | `uv sync --frozen --python 3.12 --group onnx` e `uv run --frozen --group onnx pytest` |
 | `docker-build` | Treinamento, verificação dos artefatos e construção da imagem | `uv run --frozen python -m banking_intent_classifier.final_training` e `docker/build-push-action@v6` |
 | `validate-gitflow` | Verifica a origem dos PRs para `main` | Validação de `github.base_ref` e `github.head_ref` |
 
@@ -722,12 +766,12 @@ Execute na raiz do repositório, com `uv`, Python 3.12 ou superior e Docker
 disponíveis:
 
 ```bash
-# Instalar as dependências conforme o lockfile
-uv sync --frozen
+# Instalar as dependências conforme o lockfile, incluindo o grupo onnx
+uv sync --frozen --group onnx
 
 # Reproduzir os dois controles de qualidade
 uv run --frozen ruff check .
-uv run --frozen pytest
+uv run --frozen --group onnx pytest
 
 # Gerar os artefatos que não são versionados no Git
 uv run --frozen python -m banking_intent_classifier.final_training
@@ -769,6 +813,10 @@ acima são apenas observações e podem variar entre execuções.
 O job `validate-gitflow` foi adicionado posteriormente; seu histórico e
 resultado devem ser consultados na aba Actions.
 
+Em 24/10/2026, o job `tests` passou a instalar o grupo `onnx`. A
+reprodução local foi concluída sem falhas; a execução correspondente no
+GitHub Actions deve ser conferida na aba Actions após o push da branch.
+
 A documentação das demais frentes será incorporada conforme suas validações
 forem concluídas; o acompanhamento da entrega está em
 [`docs/entrega.md`](docs/entrega.md).
@@ -797,22 +845,17 @@ Para reproduzir, execute o pipeline ou a CLI documentada em [Reprodutibilidade](
 uv run pytest tests/application/test_prediction_service.py -v
 uv run pytest tests/presentation/test_api.py -v
 uv run pytest tests/test_final_training.py tests/test_model_repository.py tests/test_label_repository.py -v
-uv run pytest
+uv run --group onnx pytest tests/test_onnx_model_repository.py tests/test_onnx_benchmark.py -v
+uv run --group onnx pytest
 ```
 
 A suíte completa roda com `uv run pytest` e passa sem falhas. Há um aviso `StarletteDeprecationWarning`, relacionado ao uso de `httpx` com `starlette.testclient`, que não impede a execução e será revisado na etapa de atualização de dependências.
 
 A contagem de testes não é fixada neste README, pois evolui a cada feature.
 
-## 👥 Equipe
-
-| Nome | RM | E-mail | Áreas de atuação                                            |
-| :--- | :---: | :--- |:------------------------------------------------------------|
-| **Marcelo da Cruz Salvador** | **RM375166** | [macrusal@gmail.com](mailto:macrusal@gmail.com) | Software/Backend Engineering · Data · Machine Learning · MLOps |
-
 ## 🗺️ Etapas do Projeto
 
-O acompanhamento da rubrica e os checkpoints datados ficam em [`docs/entrega.md`](docs/entrega.md). O Airflow está implementado; os próximos blocos são ONNX/benchmark, observabilidade e arquitetura Cloud.
+O acompanhamento da rubrica e os checkpoints datados ficam em [`docs/entrega.md`](docs/entrega.md). O Airflow e a exportação ONNX com benchmark estão implementados; os próximos blocos são observabilidade (Prometheus e Grafana) e arquitetura Cloud.
 
 ### ✅ Dataset e carregamento
 
@@ -1063,7 +1106,9 @@ A EDA, o experimento de stopwords, o baseline formal e a avaliação oficial
 foram concluídos. O modelo final foi persistido junto ao mapeamento das
 77 classes e disponibilizado por uma API FastAPI, containerizada e validada
 por uma esteira de CI. O treinamento foi orquestrado em uma DAG do Apache
-Airflow, com execução manual concluída em 22/10/2026.
+Airflow, com execução manual concluída em 22/10/2026. Em 24/10/2026, o
+modelo foi exportado para ONNX, com equivalência de 100% no teste oficial
+e benchmark de latência e throughput documentado.
 
 ```text
 BANKING77 (13.083 mensagens; 77 classes)
@@ -1085,7 +1130,8 @@ BANKING77 (13.083 mensagens; 77 classes)
     ├── Testes automatizados                   ✅
     ├── CI/CD (Ruff + Pytest + Docker Build)   ✅
     │     └── Validação de origem GitFlow      ✅
-    └── Airflow (ingest → train → publish)     ✅
+    ├── Airflow (ingest → train → publish)     ✅
+    └── ONNX + benchmark (equivalência 100%)   ✅
 ```
 
 A containerização da API foi validada com uma inferência real no Docker.
@@ -1093,11 +1139,11 @@ O pipeline de CI/CD foi validado em Pull Request e após merge na `dev`,
 e posteriormente promovido para `main`. A validação GitFlow foi
 incorporada ao workflow; a obrigatoriedade do check depende do Ruleset.
 O treinamento foi orquestrado em uma DAG do Airflow, com execução manual
-validada em 22/10/2026.
+validada em 22/10/2026. A exportação ONNX, a verificação de equivalência
+e o benchmark foram concluídos em 24/10/2026.
 
-As próximas etapas planejadas são o monitoramento com Prometheus e Grafana,
-a conversão para ONNX com benchmark de latência e a documentação da
-arquitetura em nuvem.
+As próximas etapas planejadas são o monitoramento com Prometheus e Grafana
+e a documentação da arquitetura em nuvem.
 
 ### 📋 Roadmap
 
@@ -1145,7 +1191,7 @@ arquitetura em nuvem.
 -   [x] Pipeline de treinamento com Airflow (execução manual validada em 22/10/2026)
 -   [ ] Monitoramento com Prometheus
 -   [ ] Dashboards no Grafana
--   [ ] Conversão e validação ONNX
--   [ ] Benchmark de latência
+-   [x] Conversão e validação ONNX
+-   [x] Benchmark de latência
 -   [ ] Documentação e resultados finais
 
