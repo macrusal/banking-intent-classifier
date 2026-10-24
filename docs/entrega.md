@@ -18,7 +18,7 @@
 - **21/10/2026:** preparação da lógica reutilizável para orquestração Airflow.
 - **22/10/2026:** DAG Airflow 3.1.0 `ingest → train → publish` executada com sucesso.
 - **23/10/2026:** inspeção pós-run confirmou métricas e hashes; Ruff aprovado, 36 testes aprovados (1 warning); `main` e `dev` com árvores idênticas no checkpoint. Airflow integrado por PR #34.
-- **24/10/2026:** ambiente local alinhado ao CI (Python 3.12); grupo de dependências `onnx` (`skl2onnx`, `onnxruntime` 1.23.x); exportação ONNX determinística; 5 execuções do benchmark no split `test` com 100% de concordância; job `tests` do CI passa a instalar o grupo `onnx`; jobs `lint`, `tests`, `docker-build` e `validate-gitflow` aprovados no PR #38 (`feature/onnx-inference-benchmark → dev`), integrado à `dev`. Promoção para `main` pendente.
+- **24/10/2026:** ambiente local alinhado ao CI (Python 3.12); grupo de dependências `onnx` (`skl2onnx`, `onnxruntime` 1.23.x); exportação ONNX determinística; 5 execuções do benchmark no split `test` com 100% de concordância; job `tests` do CI passa a instalar o grupo `onnx`; jobs `lint`, `tests`, `docker-build` e `validate-gitflow` aprovados no PR #38 (`feature/onnx-inference-benchmark → dev`), integrado à `dev`; registro do CI no PR #39; promoção para `main` no PR #40, com os jobs do GitHub Actions aprovados.
 
 ## Regras de trabalho e integração
 
