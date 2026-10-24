@@ -24,3 +24,13 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.17.1",
 ]
+onnx = [
+    "onnxruntime>=1.23.2,<1.24",
+    "skl2onnx>=1.20.0",
+]
+
+[tool.uv]
+# Garante wheels também para macOS Intel (onnxruntime recente não as publica).
+required-environments = [
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+]

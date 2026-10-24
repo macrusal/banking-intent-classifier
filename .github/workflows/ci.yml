@@ -55,10 +55,10 @@ jobs:
         run: uv python install 3.12
 
       - name: Instalar dependências
-        run: uv sync --frozen --python 3.12
+        run: uv sync --frozen --python 3.12 --group onnx
 
       - name: Executar testes
-        run: uv run --frozen pytest
+        run: uv run --frozen --group onnx pytest
 
 
   docker-build:
