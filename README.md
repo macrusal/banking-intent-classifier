@@ -815,7 +815,7 @@ resultado devem ser consultados na aba Actions.
 
 Em 24/10/2026, o job `tests` passou a instalar o grupo `onnx`. Os quatro
 jobs foram aprovados no PR #38 (`feature/onnx-inference-benchmark → dev`),
-integrado à `dev`; a promoção para `main` ainda não foi realizada. Os
+integrado à `dev`, e novamente na promoção para `main` pelo PR #40. Os
 registros estão na aba Actions.
 
 A documentação das demais frentes será incorporada conforme suas validações
