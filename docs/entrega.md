@@ -6,7 +6,7 @@
 | :--- | ---: | :--- | :--- |
 | Apache Airflow | 15% | Implementado e validado | DAG concluída, métricas, hashes e testes |
 | Prometheus + Grafana | 20% | Pendente | Instrumentação, coleta e dashboards |
-| ONNX + benchmark | 20% | Implementado e medido (local) | Equivalência de 100% no teste oficial; latência individual 4–7× menor; lote em empate técnico; ver [`onnx-benchmark.md`](onnx-benchmark.md). Pendente de decisão: API servindo ONNX e benchmark em Linux |
+| ONNX + benchmark | 20% | Implementado e medido (local) | Equivalência de 100% no teste oficial; latência individual 4–7× menor; lote com vantagem pequena e instável (1,2–9,0%); ver [`onnx-benchmark.md`](onnx-benchmark.md). Pendente de decisão: API servindo ONNX e benchmark em Linux |
 | Arquitetura Cloud | 15% | Pendente | Diagrama, serviços, segurança e justificativas |
 | CI/CD | 15% | Parcial | Workflows existentes; conferir aderência à rubrica |
 | Apresentação / vídeo STAR | 15% | Pendente | Adiado para depois das frentes técnicas |
