@@ -14,6 +14,11 @@ from banking_intent_classifier.infrastructure.label_repository import LabelRepos
 from banking_intent_classifier.infrastructure.model_repository import (
     ModelRepository,
 )
+from banking_intent_classifier.presentation.metrics import (
+    METRICS_PATH,
+    PrometheusMiddleware,
+    metrics,
+)
 
 ARTIFACT_PATH = Path("artifacts/baseline_pipeline.joblib")
 LABEL_MAPPING_PATH = Path("artifacts/label_mapping.json")
@@ -49,6 +54,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(PrometheusMiddleware)
+app.add_route(METRICS_PATH, metrics, include_in_schema=False)
 
 
 @app.get("/health")
