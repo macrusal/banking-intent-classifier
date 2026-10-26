@@ -160,11 +160,13 @@ banking-intent-classifier/
 ├── docs/
 │   ├── architecture.md                   # Arquitetura e responsabilidades
 │   ├── entrega.md                        # Rubrica e checkpoints
+│   ├── http-latency-baseline.md          # Baseline de latência HTTP da API
 │   ├── onnx-benchmark.md                 # ONNX, equivalência e benchmark
 │   ├── operacao-airflow.md               # Operação e diagnóstico
 │   └── study-notes/                     # Histórico técnico detalhado
 ├── src/banking_intent_classifier/
 │   ├── application/
+│   │   ├── http_latency_benchmark.py     # Medição sequencial de latência HTTP
 │   │   ├── inference_benchmark.py        # Latência e throughput
 │   │   ├── model_equivalence.py          # Equivalência sklearn × ONNX
 │   │   ├── onnx_prediction_service.py    # Inferência com ONNX Runtime
@@ -173,6 +175,7 @@ banking-intent-classifier/
 │   │   └── training_service.py           # Treinamento e avaliação
 │   ├── domain/                           # Tipos e resultados do domínio
 │   ├── infrastructure/
+│   │   ├── http_prediction_client.py     # Cliente HTTP com conexão persistente
 │   │   ├── model_repository.py           # Persistência do modelo
 │   │   ├── label_repository.py           # Mapeamento das classes
 │   │   ├── onnx_model_repository.py      # Exportação e carga ONNX
@@ -184,6 +187,7 @@ banking-intent-classifier/
 │   ├── baseline.py                       # Baseline reproduzível
 │   ├── experiment.py                     # Experimentos textuais
 │   ├── final_training.py                 # CLI do treinamento final
+│   ├── http_latency_benchmark.py         # CLI do baseline de latência HTTP
 │   ├── main.py                           # CLI de EDA
 │   └── onnx_benchmark.py                 # CLI de ONNX e benchmark
 ├── .github/
@@ -203,6 +207,7 @@ banking-intent-classifier/
 | [`docs/study-notes/README.md`](docs/study-notes/README.md) | Índice das notas de decisões técnicas | Investigar por que cada escolha foi feita |
 | [`docs/operacao-airflow.md`](docs/operacao-airflow.md) | Arquitetura local, incidentes e diagnóstico | Subir ou depurar o Airflow |
 | [`docs/onnx-benchmark.md`](docs/onnx-benchmark.md) | Exportação ONNX, equivalência, benchmark e limitações | Reproduzir ou interpretar a comparação Scikit-learn × ONNX |
+| [`docs/http-latency-baseline.md`](docs/http-latency-baseline.md) | Latência ponta a ponta de `POST /predict`, metodologia e limitações | Reproduzir a baseline da API ou calibrar a instrumentação |
 | [`docs/entrega.md`](docs/entrega.md) | Rubrica, checkpoints e pendências | Acompanhar a entrega acadêmica |
 
 ## 🚀 Setup rápido
@@ -298,6 +303,8 @@ pytest 9.1.1
 | Construir a imagem Docker (após gerar os artefatos) | `docker build -t banking-intent-classifier:local .` |
 | Iniciar a API no Docker | `docker run --rm --name banking-intent-api -p 8001:8000 banking-intent-classifier:local` |
 | Testar a API no Docker | `curl -s http://localhost:8001/health` |
+| Medir a baseline de latência HTTP da API | `uv run python -m banking_intent_classifier.http_latency_benchmark --name sklearn` |
+| Testar a medição de latência HTTP e o cliente | `uv run pytest tests/application/test_http_latency_benchmark.py tests/test_http_latency_benchmark.py tests/test_http_prediction_client.py -v` |
 
 ## 🔁 Reprodutibilidade
 
@@ -720,6 +727,57 @@ Em 5 execuções locais em 24/10/2026 (macOS Intel, Python 3.12.2, `onnxruntime 
 
 Os resultados valem para o ambiente medido; a API continua servindo o `.joblib`. **Metodologia, tabelas completas, hashes, incidentes e limitações:** [`docs/onnx-benchmark.md`](docs/onnx-benchmark.md).
 
+## ⏱️ Baseline de latência HTTP
+
+Latência ponta a ponta de `POST /predict` medida contra a API em contêiner. É a baseline
+exigida na Etapa 1 do desafio e a referência quantitativa que calibra os buckets do
+Histogram da instrumentação Prometheus.
+
+Diferente do benchmark ONNX, que mede o modelo isolado, esta medição inclui cliente HTTP,
+rede do Docker, validação Pydantic, inferência e serialização JSON da resposta. São
+medições distintas e não devem ser comparadas diretamente.
+
+```bash
+# Artefatos do modelo, se ainda não existirem
+uv run --frozen python -m banking_intent_classifier.final_training
+
+# Imagem e contêiner da API
+docker build -t banking-intent-classifier:baseline .
+docker run -d --rm --name bic-baseline -p 8000:8000 banking-intent-classifier:baseline
+
+# Medição
+uv run --frozen python -m banking_intent_classifier.http_latency_benchmark --name sklearn
+
+# Encerramento
+docker stop bic-baseline
+```
+
+Em 3 execuções locais em 26/10/2026, com 3.080 requisições por execução (split oficial de
+teste), 100 requisições de aquecimento descartadas, um cliente sequencial com conexão
+persistente e backend Scikit-learn:
+
+| Métrica | Faixa observada |
+| :--- | :--- |
+| p50 | 2,47–2,48 ms |
+| p95 | 3,08–3,19 ms |
+| p99 | 3,71–4,31 ms |
+
+O p50 variou menos de 0,01 ms entre execuções e o p99 ficou abaixo de 4,4 ms. Com um único
+cliente sequencial, a medição descreve **latência, não capacidade**: o throughput observado
+é o inverso da latência média, e não a vazão máxima da API.
+
+Opções da CLI: `--base-url`, `--name`, `--requests`, `--warmup` e `--output`. Saída:
+relatório JSON em `artifacts/`, ignorado pelo Git.
+
+**Por que isso define os buckets do Prometheus:** os buckets padrão do `prometheus_client`
+começam em 5 ms. Com a latência medida entre 2 e 3,2 ms, praticamente toda observação
+cairia no primeiro bucket e o `histogram_quantile` exibiria uma linha reta, sem informação
+útil. A instrumentação usa buckets calibrados pela faixa medida.
+
+**Metodologia, ambiente, hashes dos artefatos, throughput e limitações:**
+[`docs/http-latency-baseline.md`](docs/http-latency-baseline.md) e a
+[nota de estudo 19](docs/study-notes/19-baseline-latencia-http.md).
+
 ## 🔄 Integração Contínua (CI/CD) — GitHub Actions
 
 O projeto utiliza **GitHub Actions** para validar automaticamente a
@@ -856,7 +914,7 @@ A contagem de testes não é fixada neste README, pois evolui a cada feature.
 
 ## 🗺️ Etapas do Projeto
 
-O acompanhamento da rubrica e os checkpoints datados ficam em [`docs/entrega.md`](docs/entrega.md). O Airflow e a exportação ONNX com benchmark estão implementados; os próximos blocos são observabilidade (Prometheus e Grafana) e arquitetura Cloud.
+O acompanhamento da rubrica e os checkpoints datados ficam em [`docs/entrega.md`](docs/entrega.md). O Airflow, a exportação ONNX com benchmark e a baseline de latência HTTP da API estão implementados; os próximos blocos são observabilidade (Prometheus e Grafana) e arquitetura Cloud.
 
 ### ✅ Dataset e carregamento
 
@@ -1132,7 +1190,11 @@ BANKING77 (13.083 mensagens; 77 classes)
     ├── CI/CD (Ruff + Pytest + Docker Build)   ✅
     │     └── Validação de origem GitFlow      ✅
     ├── Airflow (ingest → train → publish)     ✅
-    └── ONNX + benchmark (equivalência 100%)   ✅
+    ├── ONNX + benchmark (equivalência 100%)   ✅
+    └── Baseline de latência HTTP da API       ✅
+          ├── p50: 2,47–2,48 ms
+          ├── p95: 3,08–3,19 ms
+          └── p99: 3,71–4,31 ms
 ```
 
 A containerização da API foi validada com uma inferência real no Docker.
@@ -1141,7 +1203,9 @@ e posteriormente promovido para `main`. A validação GitFlow foi
 incorporada ao workflow; a obrigatoriedade do check depende do Ruleset.
 O treinamento foi orquestrado em uma DAG do Airflow, com execução manual
 validada em 22/10/2026. A exportação ONNX, a verificação de equivalência
-e o benchmark foram concluídos em 24/10/2026.
+e o benchmark foram concluídos em 24/10/2026. Em 26/10/2026, a baseline de
+latência HTTP da API foi medida contra o contêiner, estabelecendo o
+entregável da Etapa 1 e a referência para calibrar a instrumentação.
 
 As próximas etapas planejadas são o monitoramento com Prometheus e Grafana
 e a documentação da arquitetura em nuvem.
@@ -1193,6 +1257,11 @@ e a documentação da arquitetura em nuvem.
 -   [ ] Monitoramento com Prometheus
 -   [ ] Dashboards no Grafana
 -   [x] Conversão e validação ONNX
--   [x] Benchmark de latência
+-   [x] Benchmark de latência do modelo
+-   [x] Baseline de latência HTTP da API
+    -   [x] Cliente HTTP com conexão persistente
+    -   [x] Aquecimento descartado e validação de respostas
+    -   [x] Percentis compartilhados com o benchmark ONNX
+    -   [x] Buckets do Histogram propostos a partir da faixa medida
 -   [ ] Documentação e resultados finais
 

@@ -72,12 +72,14 @@ artifacts/
 *.log
 logs/
 
-
+# ==============================
 # Apache Airflow — dados e arquivos gerados localmente
+# ==============================
 /airflow/data/
 /airflow/logs/
 
-# Credenciais e configurações locais
-.env
-.env.*
-!.env.example
+# ==============================
+# Documentos de trabalho não versionados
+# ==============================
+docs/plano-conclusao-fase3.md
+

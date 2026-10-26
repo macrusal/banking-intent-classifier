@@ -25,6 +25,36 @@ THREAD_VARIABLES = (
 
 
 @dataclass(frozen=True)
+class LatencySummary:
+    """Representa as estatísticas de uma série de latências, em milissegundos."""
+
+    mean_ms: float
+    p50_ms: float
+    p95_ms: float
+    p99_ms: float
+    min_ms: float
+    max_ms: float
+
+
+def summarize_latencies(latencies_s: list[float]) -> LatencySummary:
+    """Calcula média, percentis, mínimo e máximo de latências em segundos."""
+
+    if not latencies_s:
+        raise ValueError("A lista de latências não pode estar vazia.")
+
+    latencies_ms = np.array(latencies_s) * 1000
+
+    return LatencySummary(
+        mean_ms=float(latencies_ms.mean()),
+        p50_ms=float(np.percentile(latencies_ms, 50)),
+        p95_ms=float(np.percentile(latencies_ms, 95)),
+        p99_ms=float(np.percentile(latencies_ms, 99)),
+        min_ms=float(latencies_ms.min()),
+        max_ms=float(latencies_ms.max()),
+    )
+
+
+@dataclass(frozen=True)
 class BenchmarkResult:
     """Representa as medições de desempenho de um preditor."""
 
@@ -86,18 +116,18 @@ class InferenceBenchmark:
                 predict_batch(batch)
                 batch_elapsed += timer() - start
 
-        latencies_ms = np.array(latencies) * 1000
+        summary = summarize_latencies(latencies)
 
         return BenchmarkResult(
             name=name,
             samples=len(texts),
             warmup=warmup,
-            latency_mean_ms=float(latencies_ms.mean()),
-            latency_p50_ms=float(np.percentile(latencies_ms, 50)),
-            latency_p95_ms=float(np.percentile(latencies_ms, 95)),
-            latency_p99_ms=float(np.percentile(latencies_ms, 99)),
-            latency_min_ms=float(latencies_ms.min()),
-            latency_max_ms=float(latencies_ms.max()),
+            latency_mean_ms=summary.mean_ms,
+            latency_p50_ms=summary.p50_ms,
+            latency_p95_ms=summary.p95_ms,
+            latency_p99_ms=summary.p99_ms,
+            latency_min_ms=summary.min_ms,
+            latency_max_ms=summary.max_ms,
             single_throughput_rps=len(texts) / sum(latencies),
             batch_size=batch_size,
             batch_repeats=batch_repeats,
