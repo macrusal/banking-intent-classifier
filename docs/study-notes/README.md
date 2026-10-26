@@ -32,6 +32,7 @@ O objetivo é registrar não apenas **o que foi implementado**, mas também:
 17. [Avaliação final e persistência](17-avaliacao-final-persistencia.md)
 18. [Preparação do pipeline de treinamento para o Apache Airflow](airflow-training-pipeline.md)
 19. [Baseline de latência HTTP da API](19-baseline-latencia-http.md)
+20. [Instrumentação Prometheus e calibração dos buckets](20-instrumentacao-prometheus-e-buckets.md)
 
 ## Princípio adotado
 
@@ -125,3 +126,24 @@ uv run --frozen --group onnx pytest
 **Validação local informada:** `ruff` aprovado e **98 testes aprovados**, com um aviso de depreciação Starlette/httpx. **Pendente:** instrumentação Prometheus, que consumirá os buckets propostos; o ponto de atenção sobre a fronteira do bucket de 2,5 ms está registrado em [`http-latency-baseline.md`](../http-latency-baseline.md).
 
 Detalhes de metodologia, ambiente, hashes dos artefatos medidos e limitações em [`http-latency-baseline.md`](../http-latency-baseline.md) e na [nota 19](19-baseline-latencia-http.md).
+
+
+## Checkpoint — 26/10/2026: instrumentação Prometheus
+
+A API passou a expor `GET /metrics` por meio de um middleware ASGI, com o Counter `http_requests_total` (`endpoint`, `status_code`) e o Histogram `http_request_duration_seconds` (`endpoint`). A taxa de erro é derivada do Counter, sem métrica própria. O `/metrics` não é instrumentado, e rotas inexistentes ficam agregadas em `endpoint="unmatched"`.
+
+**Calibração dos buckets com medição do lado servidor:** a média exata (`_sum / _count`) ficou entre **1,80 e 1,92 ms**, cerca de 0,7 ms abaixo da média do cliente. Com os buckets provisórios, 72–86% das observações caíam num único bucket de 1 ms, e o **p95** encostava na fronteira de 2,5 ms. O ponto de atenção da nota 19 era sobre o p50; a medição mostrou que o problema estava no p95. As fronteiras finais usam passos de 0,25 ms entre 1 e 3 ms. Os buckets de 0,5 a 1,25 ms são uma previsão para o backend ONNX (tarefa 2.2), a reavaliar na 2.3.
+
+A [nota 19](19-baseline-latencia-http.md) foi atualizada com os números da sessão de medição oficial; a sessão anterior ficou como registro histórico.
+
+### Reproduzir e conferir
+
+```bash
+uv run --frozen ruff check .
+uv run --frozen --group onnx pytest
+uv run --frozen pytest tests/presentation/test_metrics.py -v
+```
+
+A coleta do lado servidor (snapshots do `/metrics` antes e depois da carga e o cálculo do delta) está em [`prometheus-instrumentation.md`](../prometheus-instrumentation.md#reprodução). **Pendente:** `compose.monitoring.yaml`, scrape do Prometheus e dashboard do Grafana (tarefas 1.3 a 1.5).
+
+Detalhes em [`prometheus-instrumentation.md`](../prometheus-instrumentation.md) e na [nota 20](20-instrumentacao-prometheus-e-buckets.md).

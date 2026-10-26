@@ -29,20 +29,33 @@ errado produziria um Histogram cego, como se verá adiante.
 
 ## Resultado medido
 
-Três execuções de 3.080 requisições cada, em 26/10/2026, contra a imagem atual do
-`Dockerfile` com backend Scikit-learn:
+Três execuções de 3.080 requisições cada, em 26/10/2026, na mesma instância do contêiner,
+contra a imagem atual do `Dockerfile` com backend Scikit-learn:
 
 | Métrica | Faixa observada |
 | :--- | :--- |
-| p50 | 2,53–2,57 ms |
-| p95 | 3,00–3,22 ms |
-| p99 | 3,47–4,22 ms |
-| Throughput sequencial | 378,7–386,7 req/s |
+| p50 | 2,47–2,48 ms |
+| p95 | 3,08–3,19 ms |
+| p99 | 3,71–4,31 ms |
+| Throughput sequencial | 387,2–391,4 req/s |
 
-O p50 variou menos de 0,04 ms entre execuções, o que indica medição estável. A cauda é
-curta: o p99 ficou abaixo de 4,3 ms, e o máximo isolado de 13,4 ms da primeira execução não
-se repetiu nas demais — comportamento típico de aquecimento residual ou escalonamento do
-sistema operacional, não de degradação do serviço.
+O p50 variou menos de 0,01 ms entre execuções, o que indica medição estável. A cauda é
+curta: o p99 ficou abaixo de 4,4 ms.
+
+O máximo isolado merece um registro à parte. Na primeira execução após subir o contêiner,
+ele foi cerca de duas vezes maior que nas seguintes, mesmo com as 100 requisições de
+aquecimento: 10,2 ms contra 5,6–6,4 ms. O padrão já tinha aparecido numa sessão anterior
+(13,4 ms na primeira execução). A causa não foi investigada. O efeito fica só no máximo e
+não desloca os percentis, mas é um bom motivo para descartar uma execução inteira de
+aquecimento antes de medir, como foi feito na calibração dos buckets
+([nota 20](20-instrumentacao-prometheus-e-buckets.md)).
+
+> **Registro histórico:** uma primeira sessão de medição, no mesmo dia, deu p50 de
+> 2,53–2,57 ms, p95 de 3,00–3,22 ms e p99 de 3,47–4,22 ms. A sessão acima a substituiu como
+> referência oficial e é a que está em
+> [`http-latency-baseline.md`](../http-latency-baseline.md). A diferença de ~0,06 ms no p50
+> entre sessões é maior que a variação dentro de cada sessão (< 0,04 ms). Isso mostra que
+> comparar números de sessões diferentes exige cuidado, mesmo na mesma máquina.
 
 Os números completos, os hashes dos artefatos medidos e as condições de ambiente estão em
 [`http-latency-baseline.md`](../http-latency-baseline.md).
@@ -73,8 +86,8 @@ chamadas, que é o caso de uso do projeto.
 Um único cliente, uma requisição por vez. Isso mede **latência**, não capacidade.
 
 É importante não confundir os dois: com um cliente sequencial, o throughput observado é
-simplesmente o inverso da latência média. Os ~380 req/s **não** são a capacidade máxima da
-API; são uma consequência aritmética de cada requisição levar ~2,6 ms. Medir capacidade
+simplesmente o inverso da latência média. Os ~389 req/s **não** são a capacidade máxima da
+API; são uma consequência aritmética de cada requisição levar ~2,57 ms. Medir capacidade
 exigiria vários clientes em paralelo e saturação deliberada do serviço, que é outro
 experimento.
 
@@ -99,15 +112,15 @@ faixa** (buckets), e o `histogram_quantile` estima percentis a partir dessas con
 consequência é direta: **a resolução do gráfico é limitada pelos buckets escolhidos.**
 
 Os buckets padrão do `prometheus_client` começam em 5 ms. A latência medida fica entre 2 e
-3,3 ms. Com o padrão, praticamente toda observação cairia no primeiro bucket, e o
+3,2 ms. Com o padrão, praticamente toda observação cairia no primeiro bucket, e o
 `histogram_quantile` não teria informação para distinguir 2 ms de 4,9 ms — o painel de p95
 exibiria uma linha praticamente reta, independentemente do que acontecesse com o serviço.
 
 O erro é silencioso: nada falha, nenhum teste quebra, o dashboard sobe e parece funcionar.
 Só não informa nada.
 
-Buckets propostos, cobrindo a faixa medida com resolução e deixando margem para degradação
-(em segundos, conforme a convenção do Prometheus):
+Buckets propostos nesta etapa como ponto de partida, cobrindo a faixa medida com resolução
+e deixando margem para degradação (em segundos, conforme a convenção do Prometheus):
 
 ```text
 0.001, 0.002, 0.0025, 0.003, 0.004, 0.005, 0.0075, 0.01, 0.025, 0.05, 0.1, 0.25
@@ -117,10 +130,24 @@ Equivalem a 1; 2; 2,5; 3; 4; 5; 7,5; 10; 25; 50; 100 e 250 ms. Os valores entre 
 dão resolução exatamente onde estão o p50, o p95 e o p99; os maiores existem para que uma
 degradação real tenha onde ser registrada.
 
-**Decisão adiada:** a medição foi feita do host para o container. A coleta do Prometheus
-acontece de dentro da rede do servidor, sem o encaminhamento de porta do Docker Desktop, e
-deve registrar latências menores. A faixa inferior dos buckets pode precisar de ajuste
-depois da primeira coleta real.
+Um ponto de atenção ficou registrado: o p50 do cliente (2,47–2,48 ms) ficava logo abaixo da
+fronteira de 2,5 ms. Uma deriva de 0,03 ms bastaria para mudar o bucket da estimativa.
+
+**Decisão adiada, depois fechada.** Esta medição foi feita do host para o contêiner. O
+Histogram, porém, mede de dentro do servidor, sem o encaminhamento de porta do Docker
+Desktop, e por isso deveria registrar latências menores. A decisão final ficou para depois
+da primeira coleta real.
+
+Essa coleta confirmou a expectativa: a média no servidor ficou entre 1,80 e 1,92 ms, cerca
+de 0,7 ms abaixo da média do cliente. Ela também mostrou que a proposta acima tinha o
+problema no lugar errado. O p50 do servidor fica longe de 2,5 ms; é o **p95** que encosta
+nessa fronteira. Além disso, a maior parte das observações caía num único bucket de 1 ms.
+As fronteiras finais usam passos de 0,25 ms entre 1 e 3 ms. O raciocínio completo está na
+[nota 20](20-instrumentacao-prometheus-e-buckets.md).
+
+A lição para esta nota: **a baseline do cliente era necessária para chegar à ordem de
+grandeza, mas não bastava para calibrar um instrumento que mede em outro ponto do
+caminho.**
 
 ## O que estes números não sustentam
 
