@@ -1,0 +1,12 @@
+# Coleta das métricas da API de classificação de intenções.
+global:
+  # 5s em vez dos 15s padrão: o painel precisa reagir durante a demonstração.
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: banking-intent-api
+    metrics_path: /metrics
+    static_configs:
+      # Nome do serviço na rede do compose; localhost seria o próprio Prometheus.
+      - targets: ["api:8000"]
