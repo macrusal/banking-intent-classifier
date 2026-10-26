@@ -148,6 +148,8 @@ Isso corresponde a 1; 2; 2,5; 3; 4; 5; 7,5; 10; 25; 50; 100; 250 ms. Os buckets 
 
 **Ponto de atenção para a tarefa 1.1:** o p50 medido (2,47–2,48 ms) fica imediatamente abaixo da fronteira do bucket de 2,5 ms. Uma deriva de 0,03 ms desloca a estimativa do p50 para o bucket seguinte e produz um salto no painel sem degradação real. Considere acrescentar um bucket em 2,25 ms ou deslocar o de 2,5 ms, decidindo com a latência coletada de dentro da rede do Compose.
 
+**Decisão tomada em 26/10/2026:** a medição do lado servidor (média de 1,80–1,92 ms) deslocou o problema do p50 para o p95. As fronteiras finais usam passos de 0,25 ms entre 1 e 3 ms. Medições e justificativa estão em [`prometheus-instrumentation.md`](prometheus-instrumentation.md#calibração-dos-buckets).
+
 ## Componentes
 
 | Componente | Camada | Responsabilidade |

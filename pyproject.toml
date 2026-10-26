@@ -9,6 +9,7 @@ dependencies = [
     "datasets",
     "fastapi>=0.143.3",
     "pandas",
+    "prometheus-client>=0.26.0",
     "scikit-learn>=1.9.1",
     "summary>=0.2.0",
     "uvicorn>=0.54.0",
