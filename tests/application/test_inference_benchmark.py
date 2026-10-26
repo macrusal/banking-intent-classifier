@@ -10,6 +10,7 @@ from banking_intent_classifier.application.inference_benchmark import (
     BENCHMARKED_PACKAGES,
     InferenceBenchmark,
     collect_environment,
+    summarize_latencies,
 )
 
 TEXTS = [f"text {index}" for index in range(10)]
@@ -130,6 +131,28 @@ def test_should_compute_percentiles_with_variable_latency() -> None:
     assert result.latency_min_ms == pytest.approx(1.0)
     assert result.latency_max_ms == pytest.approx(100.0)
     assert result.latency_mean_ms == pytest.approx(50.5)
+
+
+def test_should_summarize_latencies_in_milliseconds() -> None:
+    """Verifica a conversão para ms e as estatísticas da série."""
+
+    latencies_ms = list(range(1, 101))
+
+    summary = summarize_latencies([latency / 1000 for latency in latencies_ms])
+
+    assert summary.mean_ms == pytest.approx(50.5)
+    assert summary.p50_ms == pytest.approx(np.percentile(latencies_ms, 50))
+    assert summary.p95_ms == pytest.approx(np.percentile(latencies_ms, 95))
+    assert summary.p99_ms == pytest.approx(np.percentile(latencies_ms, 99))
+    assert summary.min_ms == pytest.approx(1.0)
+    assert summary.max_ms == pytest.approx(100.0)
+
+
+def test_should_reject_empty_latencies() -> None:
+    """Verifica a rejeição de uma série vazia."""
+
+    with pytest.raises(ValueError):
+        summarize_latencies([])
 
 
 @pytest.mark.parametrize("warmup", [0, 5, 50])

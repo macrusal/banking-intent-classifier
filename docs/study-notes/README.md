@@ -31,6 +31,7 @@ O objetivo é registrar não apenas **o que foi implementado**, mas também:
 16. [Baseline formal](16-baseline-formal.md)
 17. [Avaliação final e persistência](17-avaliacao-final-persistencia.md)
 18. [Preparação do pipeline de treinamento para o Apache Airflow](airflow-training-pipeline.md)
+19. [Baseline de latência HTTP da API](19-baseline-latencia-http.md)
 
 ## Princípio adotado
 
@@ -91,3 +92,36 @@ uv run pytest
 **Evidência observada:** execução manual em 22/10/2026, três tarefas em `success`, uma tentativa por tarefa e duração total de aproximadamente 30 segundos. **Pendente:** conferir e registrar as métricas e os horários de atualização dos artefatos dessa execução; a existência prévia de `artifacts/` não é evidência suficiente. A última suíte informada continha **36 testes aprovados**, mas deve ser repetida antes do commit.
 
 Para explicações técnicas, incidentes, comandos de diagnóstico e estado da rubrica, consultar a [seção operacional do README geral](../../README.md#-execução-airflow-e-decisões-arquiteturais--checkpoint-23102026) e a [nota 18](airflow-training-pipeline.md). O registro de 21/10 permanece histórico e não representa o status atual.
+
+
+## Checkpoint — 26/10/2026: baseline de latência HTTP
+
+Medição ponta a ponta de `POST /predict` contra o contêiner, em três execuções de 3.080 requisições na mesma instância: **p50 de 2,47–2,48 ms, p95 de 3,08–3,19 ms e p99 de 3,71–4,31 ms**. O p50 variou menos de 0,01 ms entre execuções. A janela medida levou de 7,87 s a 7,96 s por execução.
+
+A medição estabelece a baseline exigida na Etapa 1 e define os buckets do Histogram da instrumentação Prometheus: os padrões do `prometheus_client` começam em 5 ms e seriam cegos nesta faixa, concentrando todas as observações no primeiro bucket.
+
+**Distinção que a nota 19 registra:** o benchmark de [`onnx-benchmark.md`](../onnx-benchmark.md) mede o modelo isolado, em processo; esta medição mede o serviço, incluindo cliente HTTP, rede do Docker, validação Pydantic, inferência e serialização da resposta. São grandezas distintas e não devem ser comparadas diretamente.
+
+A implementação extraiu `summarize_latencies` para a camada de aplicação, agora compartilhada com o benchmark ONNX, e isolou o cliente HTTP na infraestrutura. A camada de aplicação recebe o envio da requisição como função e não conhece HTTP, o que mantém a medição testável sem servidor, rede ou Docker.
+
+**Incidente registrado:** a guarda do `/health` foi validada por acidente. Uma execução iniciada enquanto o contêiner ainda subia foi interrompida com `RuntimeError`, em vez de produzir medição inválida. O procedimento de reprodução passou a incluir a espera pelo `/health`.
+
+**Observação sem explicação confirmada:** a primeira execução após subir o contêiner apresenta o máximo isolado cerca de duas vezes maior que as seguintes, mesmo com as 100 requisições de aquecimento. O padrão se repetiu em duas sessões independentes. O efeito aparece apenas no máximo e não desloca os percentis.
+
+### Reproduzir e conferir
+
+```bash
+uv run --frozen python -m banking_intent_classifier.final_training
+docker build -t banking-intent-classifier:baseline .
+docker run -d --rm --name bic-baseline -p 8000:8000 banking-intent-classifier:baseline
+until curl -sf http://localhost:8000/health >/dev/null; do sleep 1; done
+uv run --frozen python -m banking_intent_classifier.http_latency_benchmark --name sklearn
+docker stop bic-baseline
+
+uv run --frozen ruff check .
+uv run --frozen --group onnx pytest
+```
+
+**Validação local informada:** `ruff` aprovado e **98 testes aprovados**, com um aviso de depreciação Starlette/httpx. **Pendente:** instrumentação Prometheus, que consumirá os buckets propostos; o ponto de atenção sobre a fronteira do bucket de 2,5 ms está registrado em [`http-latency-baseline.md`](../http-latency-baseline.md).
+
+Detalhes de metodologia, ambiente, hashes dos artefatos medidos e limitações em [`http-latency-baseline.md`](../http-latency-baseline.md) e na [nota 19](19-baseline-latencia-http.md).
