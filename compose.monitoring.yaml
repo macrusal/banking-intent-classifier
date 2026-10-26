@@ -1,0 +1,44 @@
+name: banking-intent-monitoring
+
+# Stack de observabilidade da API: separada de compose.airflow.yaml.
+# Pré-requisito: artifacts/ gerado por final_training (não versionado).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: banking-intent-classifier:monitoring
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mesmo padrão do Airflow: o modelo vem do host, não só da imagem.
+      - ./artifacts:/app/artifacts:ro
+
+  prometheus:
+    image: prom/prometheus:v3.12.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:13.0.1
+    ports:
+      - "3000:3000"
+    environment:
+      # Leitura anônima: o avaliador abre localhost:3000 sem login.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/api.json
+      # Sem instalação de plugins na subida: nenhum é usado e evita acesso à rede.
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+    volumes:
+      # Só os subdiretórios usados; os demais (plugins, alerting) seguem os da imagem.
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
