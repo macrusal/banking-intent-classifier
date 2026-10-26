@@ -33,6 +33,7 @@ O objetivo é registrar não apenas **o que foi implementado**, mas também:
 18. [Preparação do pipeline de treinamento para o Apache Airflow](airflow-training-pipeline.md)
 19. [Baseline de latência HTTP da API](19-baseline-latencia-http.md)
 20. [Instrumentação Prometheus e calibração dos buckets](20-instrumentacao-prometheus-e-buckets.md)
+21. [Observabilidade com Prometheus e Grafana como código](21-observabilidade-prometheus-grafana.md)
 
 ## Princípio adotado
 
@@ -147,3 +148,42 @@ uv run --frozen pytest tests/presentation/test_metrics.py -v
 A coleta do lado servidor (snapshots do `/metrics` antes e depois da carga e o cálculo do delta) está em [`prometheus-instrumentation.md`](../prometheus-instrumentation.md#reprodução). **Pendente:** `compose.monitoring.yaml`, scrape do Prometheus e dashboard do Grafana (tarefas 1.3 a 1.5).
 
 Detalhes em [`prometheus-instrumentation.md`](../prometheus-instrumentation.md) e na [nota 20](20-instrumentacao-prometheus-e-buckets.md).
+
+
+## Checkpoint — 26/10/2026: stack de observabilidade
+
+`compose.monitoring.yaml`, separado do Compose do Airflow, sobe três serviços:
+- `api`, construída do `Dockerfile` e com `./artifacts` montado em somente leitura;
+- `prometheus` (`v3.12.0`), que coleta `api:8000/metrics` a cada 5 s;
+- `grafana` (`13.0.1`), com o datasource de `uid` fixo e o dashboard provisionados em arquivo, leitura anônima e o dashboard como página inicial.
+
+Os três painéis (taxa de requisições, latência p95 de `/predict` e taxa de erro 5xx) derivam das duas métricas da API.
+
+**Validação com a stack recriada do zero e carga real:** target `banking-intent-api` com `health=up`. Durante a carga, os painéis exibiram **265,40 req/s** em `/predict`, **p95 de 2,91 ms** e **0,00% de erro**. Sem tráfego, o painel de erro exibiu 0,00% em vez de 0/0. O p95 foi medido na primeira carga após a subida; com o contêiner aquecido, uma rodada anterior exibiu 2,27 ms.
+
+**Incidentes corrigidos na configuração:** montar `provisioning/` inteiro escondia os subdiretórios da imagem, e o instalador de plugins tentava acessar a rede na subida. A [nota 21](21-observabilidade-prometheus-grafana.md) registra o raciocínio:
+- provisionamento como código;
+- a armadilha do uid;
+- a unidade do eixo;
+- a derivação dos painéis.
+
+### Reproduzir e conferir
+
+```bash
+uv run --frozen python -m banking_intent_classifier.final_training
+docker compose -f compose.monitoring.yaml up -d --build
+for i in 1 2 3; do uv run --frozen python -m banking_intent_classifier.http_latency_benchmark --name stack --output artifacts/http_latency_stack_run$i.json; done
+docker compose -f compose.monitoring.yaml down
+
+uv run --frozen ruff check .
+uv run --frozen --group onnx pytest
+uv run --frozen pytest tests/test_monitoring_config.py -v
+```
+
+**Pendente:**
+- tarefa 1.6 (gerador de carga dedicado);
+- servir ONNX na API (2.2) e comparar os backends (2.3), o que confirmará ou removerá os buckets abaixo de 1,25 ms;
+- arquitetura em nuvem;
+- vídeo STAR.
+
+Detalhes em [`operacao-monitoramento.md`](../operacao-monitoramento.md) e na [nota 21](21-observabilidade-prometheus-grafana.md).

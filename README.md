@@ -157,13 +157,21 @@ banking-intent-classifier/
 │   └── dags/
 │       └── banking77_training_pipeline.py # DAG ingest → train → publish
 ├── compose.airflow.yaml                  # Serviços do Airflow e PostgreSQL
+├── compose.monitoring.yaml               # API, Prometheus e Grafana
 ├── docs/
 │   ├── architecture.md                   # Arquitetura e responsabilidades
 │   ├── entrega.md                        # Rubrica e checkpoints
 │   ├── http-latency-baseline.md          # Baseline de latência HTTP da API
 │   ├── onnx-benchmark.md                 # ONNX, equivalência e benchmark
-│   ├── operacao-airflow.md               # Operação e diagnóstico
+│   ├── operacao-airflow.md               # Operação e diagnóstico do Airflow
+│   ├── operacao-monitoramento.md         # Operação da stack Prometheus + Grafana
+│   ├── prometheus-instrumentation.md     # Métricas da API e calibração dos buckets
 │   └── study-notes/                     # Histórico técnico detalhado
+├── monitoring/
+│   ├── prometheus.yml                    # Scrape de api:8000/metrics a cada 5 s
+│   └── grafana/
+│       ├── provisioning/                 # Datasource (uid fixo) e provider
+│       └── dashboards/api.json           # Dashboard com os três painéis
 ├── src/banking_intent_classifier/
 │   ├── application/
 │   │   ├── http_latency_benchmark.py     # Medição sequencial de latência HTTP
@@ -183,7 +191,8 @@ banking-intent-classifier/
 │   │       ├── banking77_loader.py       # Fonte Hugging Face
 │   │       └── dataset_repository.py     # Persistência do dataset
 │   ├── presentation/
-│   │   └── api.py                        # API FastAPI
+│   │   ├── api.py                        # API FastAPI
+│   │   └── metrics.py                    # Middleware e métricas Prometheus
 │   ├── baseline.py                       # Baseline reproduzível
 │   ├── experiment.py                     # Experimentos textuais
 │   ├── final_training.py                 # CLI do treinamento final
@@ -208,6 +217,8 @@ banking-intent-classifier/
 | [`docs/operacao-airflow.md`](docs/operacao-airflow.md) | Arquitetura local, incidentes e diagnóstico | Subir ou depurar o Airflow |
 | [`docs/onnx-benchmark.md`](docs/onnx-benchmark.md) | Exportação ONNX, equivalência, benchmark e limitações | Reproduzir ou interpretar a comparação Scikit-learn × ONNX |
 | [`docs/http-latency-baseline.md`](docs/http-latency-baseline.md) | Latência ponta a ponta de `POST /predict`, metodologia e limitações | Reproduzir a baseline da API ou calibrar a instrumentação |
+| [`docs/prometheus-instrumentation.md`](docs/prometheus-instrumentation.md) | Métricas de `/metrics`, decisões do middleware e calibração dos buckets | Entender o que a API mede e por quê |
+| [`docs/operacao-monitoramento.md`](docs/operacao-monitoramento.md) | Stack Prometheus + Grafana: subida, carga, painéis, verificação e diagnóstico | Subir ou depurar o monitoramento |
 | [`docs/entrega.md`](docs/entrega.md) | Rubrica, checkpoints e pendências | Acompanhar a entrega acadêmica |
 
 ## 🚀 Setup rápido
@@ -305,6 +316,10 @@ pytest 9.1.1
 | Testar a API no Docker | `curl -s http://localhost:8001/health` |
 | Medir a baseline de latência HTTP da API | `uv run python -m banking_intent_classifier.http_latency_benchmark --name sklearn` |
 | Testar a medição de latência HTTP e o cliente | `uv run pytest tests/application/test_http_latency_benchmark.py tests/test_http_latency_benchmark.py tests/test_http_prediction_client.py -v` |
+| Testar a instrumentação Prometheus | `uv run pytest tests/presentation/test_metrics.py -v` |
+| Validar a configuração do monitoramento | `docker compose -f compose.monitoring.yaml config --quiet && uv run pytest tests/test_monitoring_config.py -v` |
+| Subir API, Prometheus e Grafana (após gerar os artefatos) | `docker compose -f compose.monitoring.yaml up -d --build` |
+| Encerrar a stack de monitoramento | `docker compose -f compose.monitoring.yaml down` |
 
 ## 🔁 Reprodutibilidade
 
@@ -555,6 +570,7 @@ Documentação interativa (OpenAPI/Swagger): `http://127.0.0.1:8000/docs`.
 | :--- | :--- | :--- |
 | GET | `/health` | Retorna o estado operacional básico da API |
 | POST | `/predict` | Classifica uma mensagem e retorna ID e nome da intenção |
+| GET | `/metrics` | Métricas no formato Prometheus (fora do Swagger); ver [Monitoramento](#-monitoramento--prometheus-e-grafana) |
 
 Em outro terminal, teste o endpoint de saúde:
 
@@ -778,6 +794,70 @@ cairia no primeiro bucket e o `histogram_quantile` exibiria uma linha reta, sem 
 [`docs/http-latency-baseline.md`](docs/http-latency-baseline.md) e a
 [nota de estudo 19](docs/study-notes/19-baseline-latencia-http.md).
 
+## 📈 Monitoramento — Prometheus e Grafana
+
+A API expõe métricas em `GET /metrics`. A stack de monitoramento coleta essas métricas e
+as exibe num dashboard pronto, provisionado como código: não há nada para configurar na UI.
+
+### O que a stack sobe
+
+`compose.monitoring.yaml` é separado do Compose do Airflow e sobe três serviços:
+
+| Serviço | Porta | Papel |
+| :--- | :--- | :--- |
+| `api` | `8000` | A API, construída do `Dockerfile`, com `./artifacts` montado em somente leitura |
+| `prometheus` | `9090` | Coleta `api:8000/metrics` a cada 5 s, pelo nome do serviço na rede do Compose |
+| `grafana` | `3000` | Datasource e dashboard provisionados em arquivo, leitura anônima e dashboard como página inicial |
+
+### Como subir
+
+**Pré-requisito:** os artefatos do modelo. `artifacts/` é ignorado pelo Git e o build copia
+esses arquivos; sem eles, o `docker compose up --build` falha no `COPY artifacts/`.
+
+```bash
+uv run --frozen python -m banking_intent_classifier.final_training
+docker compose -f compose.monitoring.yaml up -d --build
+```
+
+| Interface | Endereço |
+| :--- | :--- |
+| Dashboard no Grafana (sem login) | <http://localhost:3000> |
+| Targets do Prometheus | <http://localhost:9090/targets> |
+| Métricas brutas da API | <http://localhost:8000/metrics> |
+
+### Como gerar carga
+
+```bash
+for i in 1 2 3; do
+  uv run --frozen python -m banking_intent_classifier.http_latency_benchmark --name stack --output artifacts/http_latency_stack_run$i.json
+done
+```
+
+Cada execução envia cerca de 3.200 requisições sequenciais. O dashboard atualiza a cada 5 s.
+Para encerrar, use `docker compose -f compose.monitoring.yaml down`.
+
+### O que cada painel mostra
+
+Os três painéis derivam das duas métricas da API: o Counter `http_requests_total`
+(`endpoint`, `status_code`) e o Histogram `http_request_duration_seconds` (`endpoint`).
+
+| Painel | Consulta (resumo) | Valor exibido na validação de 26/10/2026, durante a carga |
+| :--- | :--- | :--- |
+| Taxa de requisições | `rate` sobre o Counter, por endpoint | 265,40 req/s em `/predict` |
+| Latência p95 — `POST /predict` | `histogram_quantile(0.95, …)` agregado por `le`, em segundos | 2,91 ms |
+| Taxa de erro (5xx) | razão entre requisições 5xx e o total; sem tráfego, exibe 0 | 0,00% |
+
+A latência é medida dentro do servidor e fica cerca de 0,7 ms abaixo da vista pelo
+cliente. O p95 acima foi medido na primeira carga após a subida; com o contêiner aquecido,
+o painel exibiu 2,27 ms.
+
+**Operação, verificação sem UI, diagnóstico e segurança:**
+[`docs/operacao-monitoramento.md`](docs/operacao-monitoramento.md).
+**Métricas e calibração dos buckets:**
+[`docs/prometheus-instrumentation.md`](docs/prometheus-instrumentation.md).
+**Raciocínio:** notas de estudo [20](docs/study-notes/20-instrumentacao-prometheus-e-buckets.md)
+e [21](docs/study-notes/21-observabilidade-prometheus-grafana.md).
+
 ## 🔄 Integração Contínua (CI/CD) — GitHub Actions
 
 O projeto utiliza **GitHub Actions** para validar automaticamente a
@@ -905,6 +985,7 @@ uv run pytest tests/application/test_prediction_service.py -v
 uv run pytest tests/presentation/test_api.py -v
 uv run pytest tests/test_final_training.py tests/test_model_repository.py tests/test_label_repository.py -v
 uv run --group onnx pytest tests/test_onnx_model_repository.py tests/test_onnx_benchmark.py -v
+uv run pytest tests/presentation/test_metrics.py tests/test_monitoring_config.py -v
 uv run --group onnx pytest
 ```
 
@@ -914,7 +995,7 @@ A contagem de testes não é fixada neste README, pois evolui a cada feature.
 
 ## 🗺️ Etapas do Projeto
 
-O acompanhamento da rubrica e os checkpoints datados ficam em [`docs/entrega.md`](docs/entrega.md). O Airflow, a exportação ONNX com benchmark e a baseline de latência HTTP da API estão implementados; os próximos blocos são observabilidade (Prometheus e Grafana) e arquitetura Cloud.
+O acompanhamento da rubrica e os checkpoints datados ficam em [`docs/entrega.md`](docs/entrega.md). O Airflow, a exportação ONNX com benchmark, a baseline de latência HTTP da API e a observabilidade (instrumentação Prometheus e dashboard Grafana) estão implementados. Os próximos blocos são servir ONNX na API e documentar a arquitetura Cloud.
 
 ### ✅ Dataset e carregamento
 
@@ -1191,10 +1272,15 @@ BANKING77 (13.083 mensagens; 77 classes)
     │     └── Validação de origem GitFlow      ✅
     ├── Airflow (ingest → train → publish)     ✅
     ├── ONNX + benchmark (equivalência 100%)   ✅
-    └── Baseline de latência HTTP da API       ✅
-          ├── p50: 2,47–2,48 ms
-          ├── p95: 3,08–3,19 ms
-          └── p99: 3,71–4,31 ms
+    ├── Baseline de latência HTTP da API       ✅
+    │     ├── p50: 2,47–2,48 ms
+    │     ├── p95: 3,08–3,19 ms
+    │     └── p99: 3,71–4,31 ms
+    ├── Instrumentação Prometheus (/metrics)   ✅
+    │     └── Buckets calibrados no servidor (média 1,80–1,92 ms)
+    └── Stack Prometheus + Grafana             ✅
+          ├── Target api:8000 UP (scrape 5 s)
+          └── 3 painéis: taxa, p95 e erro 5xx
 ```
 
 A containerização da API foi validada com uma inferência real no Docker.
@@ -1205,10 +1291,12 @@ O treinamento foi orquestrado em uma DAG do Airflow, com execução manual
 validada em 22/10/2026. A exportação ONNX, a verificação de equivalência
 e o benchmark foram concluídos em 24/10/2026. Em 26/10/2026, a baseline de
 latência HTTP da API foi medida contra o contêiner, estabelecendo o
-entregável da Etapa 1 e a referência para calibrar a instrumentação.
+entregável da Etapa 1 e a referência para calibrar a instrumentação. No
+mesmo dia, a API foi instrumentada com Prometheus, e a stack com Prometheus
+e Grafana provisionado foi validada com carga real.
 
-As próximas etapas planejadas são o monitoramento com Prometheus e Grafana
-e a documentação da arquitetura em nuvem.
+As próximas etapas planejadas são servir o modelo ONNX na API, comparar os
+backends no HTTP e documentar a arquitetura em nuvem.
 
 ### 📋 Roadmap
 
@@ -1254,8 +1342,14 @@ e a documentação da arquitetura em nuvem.
 -   [x] Preparar operações reutilizáveis para o Airflow (sem DAG)
 -   [x] Teste de integração ponta a ponta das operações
 -   [x] Pipeline de treinamento com Airflow (execução manual validada em 22/10/2026)
--   [ ] Monitoramento com Prometheus
--   [ ] Dashboards no Grafana
+-   [x] Monitoramento com Prometheus
+    -   [x] Instrumentação da API (`/metrics`, middleware ASGI)
+    -   [x] Buckets do Histogram calibrados pela latência do servidor
+    -   [x] Coleta a cada 5 s pelo nome do serviço no Compose
+-   [x] Dashboards no Grafana
+    -   [x] Datasource e dashboard provisionados como código
+    -   [x] Taxa de requisições, latência p95 e taxa de erro
+    -   [x] Validação com carga real
 -   [x] Conversão e validação ONNX
 -   [x] Benchmark de latência do modelo
 -   [x] Baseline de latência HTTP da API
