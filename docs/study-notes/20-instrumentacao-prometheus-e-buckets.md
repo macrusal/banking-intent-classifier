@@ -147,13 +147,16 @@ O p95 também cruzou 2,25 ms entre as execuções 5 e 6. Isso acompanhou uma mud
 média subiu de 1,83 para 1,89 ms. É o comportamento desejado: o painel reage a uma variação
 de verdade.
 
-### Medição e previsão
+### Medição e decisão de reserva
 
 Os buckets de 1 e 1,25 ms ficaram vazios, e o de 0,5 ms também. Foram mantidos por uma
-**previsão**: na tarefa 2.2, a API passará a servir ONNX, cujo modelo isolado é cerca de
-0,5 ms mais rápido no p50. A documentação registra isso explicitamente como previsão, a ser
-reavaliada na 2.3. Misturar o que foi medido com o que se espera medir, sem distinguir os
-dois, é uma das formas mais comuns de documentação técnica enganosa.
+**decisão registrada**: são uma reserva de resolução para um backend mais rápido. O modelo
+isolado em ONNX é cerca de 0,5 ms mais rápido no p50 que o Scikit-learn
+([`onnx-benchmark.md`](../onnx-benchmark.md)). Servir ONNX na API ficou fora do escopo
+desta entrega, então essa faixa não será medida aqui. Por isso o texto não a trata como
+previsão a confirmar. A documentação separa o que foi medido (a distribuição de 1,5 a 4 ms)
+do que foi decidido sem medição (a reserva abaixo de 1,25 ms). Misturar os dois, sem
+distinguir, é uma das formas mais comuns de documentação técnica enganosa.
 
 **Custo da granularidade:** 18 fronteiras mais `+Inf` dão 19 séries `_bucket` por valor de
 `endpoint`, que tem poucos valores possíveis. A resolução extra é praticamente gratuita.
@@ -191,5 +194,6 @@ snapshots antes e depois e o código de extração do delta embutido. Ele já fo
   inexistentes e scrape fora da medição.
 - **Taxa de erro é consulta, não métrica.** Derivar do Counter evita duas fontes de
   verdade.
-- **Previsão deve ser rotulada como previsão.** Os buckets abaixo de 1,25 ms existem por
-  expectativa sobre o ONNX e serão confirmados ou removidos com medição.
+- **Decisão sem medição deve ser rotulada como tal.** Os buckets abaixo de 1,25 ms são
+  reserva para um backend mais rápido, decidida e registrada. Não são uma previsão deixada
+  sem verificação.

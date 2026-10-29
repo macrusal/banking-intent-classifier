@@ -200,14 +200,15 @@ stack recriada do zero:
 
 | Painel | Sem tráfego | Durante a carga |
 | :--- | :--- | :--- |
-| Taxa de requisições | 0,00 req/s | 265,40 req/s em `/predict` |
+| Taxa de requisições | 0,00 req/s | 265,40 req/s em `/predict` (média da janela, não vazão) |
 | Latência p95 | sem série | 2,91 ms |
 | Taxa de erro | 0,00% | 0,00% |
 
 Três leituras que a tabela ensina:
 
-1. **A taxa ficou abaixo dos ~390 req/s do cliente** porque a janela de ~20 s pega as pausas
-   entre execuções do benchmark. O painel mostra a média da janela, não o pico.
+1. **A taxa ficou abaixo dos ~380–390 req/s medidos pelo cliente** porque a janela de ~20 s
+   pega as pausas entre execuções do benchmark. O painel mostra a média da janela, não o
+   pico. Por isso, 265,40 req/s **não é a vazão da API** e não deve ser citado como tal.
 2. **O p95 de 2,91 ms foi medido na primeira carga após a subida.** Numa rodada com o
    contêiner aquecido, o mesmo painel mostrou 2,27 ms. É o efeito de primeira execução da
    nota 19, agora visível também no servidor. Para a gravação, convém aquecer a stack antes.

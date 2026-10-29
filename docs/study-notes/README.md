@@ -133,7 +133,7 @@ Detalhes de metodologia, ambiente, hashes dos artefatos medidos e limitações e
 
 A API passou a expor `GET /metrics` por meio de um middleware ASGI, com o Counter `http_requests_total` (`endpoint`, `status_code`) e o Histogram `http_request_duration_seconds` (`endpoint`). A taxa de erro é derivada do Counter, sem métrica própria. O `/metrics` não é instrumentado, e rotas inexistentes ficam agregadas em `endpoint="unmatched"`.
 
-**Calibração dos buckets com medição do lado servidor:** a média exata (`_sum / _count`) ficou entre **1,80 e 1,92 ms**, cerca de 0,7 ms abaixo da média do cliente. Com os buckets provisórios, 72–86% das observações caíam num único bucket de 1 ms, e o **p95** encostava na fronteira de 2,5 ms. O ponto de atenção da nota 19 era sobre o p50; a medição mostrou que o problema estava no p95. As fronteiras finais usam passos de 0,25 ms entre 1 e 3 ms. Os buckets de 0,5 a 1,25 ms são uma previsão para o backend ONNX (tarefa 2.2), a reavaliar na 2.3.
+**Calibração dos buckets com medição do lado servidor:** a média exata (`_sum / _count`) ficou entre **1,80 e 1,92 ms**, cerca de 0,7 ms abaixo da média do cliente. Com os buckets provisórios, 72–86% das observações caíam num único bucket de 1 ms, e o **p95** encostava na fronteira de 2,5 ms. O ponto de atenção da nota 19 era sobre o p50; a medição mostrou que o problema estava no p95. As fronteiras finais usam passos de 0,25 ms entre 1 e 3 ms. Os buckets de 0,5 a 1,25 ms ficaram vazios e são mantidos por decisão registrada, como reserva de resolução para um backend mais rápido. Servir ONNX na API está fora do escopo desta entrega.
 
 A [nota 19](19-baseline-latencia-http.md) foi atualizada com os números da sessão de medição oficial; a sessão anterior ficou como registro histórico.
 
@@ -181,9 +181,8 @@ uv run --frozen pytest tests/test_monitoring_config.py -v
 ```
 
 **Pendente:**
-- tarefa 1.6 (gerador de carga dedicado);
-- servir ONNX na API (2.2) e comparar os backends (2.3), o que confirmará ou removerá os buckets abaixo de 1,25 ms;
-- arquitetura em nuvem;
-- vídeo STAR.
+- vídeo STAR ([roteiro](../roteiro-video-star.md)).
+
+A geração de carga é feita pelo `http_latency_benchmark`. A arquitetura em nuvem está documentada como proposta na [§13 de `architecture.md`](../architecture.md#13-arquitetura-em-nuvem-proposta). Servir ONNX na API fica como trabalho futuro, fora do escopo desta entrega.
 
 Detalhes em [`operacao-monitoramento.md`](../operacao-monitoramento.md) e na [nota 21](21-observabilidade-prometheus-grafana.md).

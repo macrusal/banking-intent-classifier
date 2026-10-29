@@ -160,7 +160,6 @@ banking-intent-classifier/
 ├── compose.monitoring.yaml               # API, Prometheus e Grafana
 ├── docs/
 │   ├── architecture.md                   # Arquitetura e responsabilidades
-│   ├── entrega.md                        # Rubrica e checkpoints
 │   ├── http-latency-baseline.md          # Baseline de latência HTTP da API
 │   ├── onnx-benchmark.md                 # ONNX, equivalência e benchmark
 │   ├── operacao-airflow.md               # Operação e diagnóstico do Airflow
@@ -213,13 +212,13 @@ banking-intent-classifier/
 | Documento | Conteúdo | Quando consultar |
 | :--- | :--- | :--- |
 | [`docs/architecture.md`](docs/architecture.md) | Camadas, responsabilidades e decisões | Entender a organização do código |
+| [`docs/architecture.md` §13](docs/architecture.md#13-arquitetura-em-nuvem-proposta) | Arquitetura em nuvem proposta no GCP (não implantada) | Avaliar provedor, mapeamento, tempo real × batch e segurança |
 | [`docs/study-notes/README.md`](docs/study-notes/README.md) | Índice das notas de decisões técnicas | Investigar por que cada escolha foi feita |
 | [`docs/operacao-airflow.md`](docs/operacao-airflow.md) | Arquitetura local, incidentes e diagnóstico | Subir ou depurar o Airflow |
 | [`docs/onnx-benchmark.md`](docs/onnx-benchmark.md) | Exportação ONNX, equivalência, benchmark e limitações | Reproduzir ou interpretar a comparação Scikit-learn × ONNX |
 | [`docs/http-latency-baseline.md`](docs/http-latency-baseline.md) | Latência ponta a ponta de `POST /predict`, metodologia e limitações | Reproduzir a baseline da API ou calibrar a instrumentação |
 | [`docs/prometheus-instrumentation.md`](docs/prometheus-instrumentation.md) | Métricas de `/metrics`, decisões do middleware e calibração dos buckets | Entender o que a API mede e por quê |
 | [`docs/operacao-monitoramento.md`](docs/operacao-monitoramento.md) | Stack Prometheus + Grafana: subida, carga, painéis, verificação e diagnóstico | Subir ou depurar o monitoramento |
-| [`docs/entrega.md`](docs/entrega.md) | Rubrica, checkpoints e pendências | Acompanhar a entrega acadêmica |
 
 ## 🚀 Setup rápido
 
@@ -843,9 +842,14 @@ Os três painéis derivam das duas métricas da API: o Counter `http_requests_to
 
 | Painel | Consulta (resumo) | Valor exibido na validação de 26/10/2026, durante a carga |
 | :--- | :--- | :--- |
-| Taxa de requisições | `rate` sobre o Counter, por endpoint | 265,40 req/s em `/predict` |
+| Taxa de requisições | `rate` sobre o Counter, por endpoint | 265,40 req/s em `/predict` (média da janela, não vazão; ver nota abaixo) |
 | Latência p95 — `POST /predict` | `histogram_quantile(0.95, …)` agregado por `le`, em segundos | 2,91 ms |
 | Taxa de erro (5xx) | razão entre requisições 5xx e o total; sem tráfego, exibe 0 | 0,00% |
+
+**A taxa de 265,40 req/s não é a vazão da API.** É o `rate()` calculado sobre a janela do
+painel (~20 s), que inclui as pausas entre execuções do benchmark, quando ele recarrega o
+dataset e faz o aquecimento. Durante as rajadas, o cliente mediu ~380–390 req/s, sequenciais
+([`docs/operacao-monitoramento.md`](docs/operacao-monitoramento.md#estado-confirmado-em-26102026)).
 
 A latência é medida dentro do servidor e fica cerca de 0,7 ms abaixo da vista pelo
 cliente. O p95 acima foi medido na primeira carga após a subida; com o contêiner aquecido,
@@ -958,9 +962,34 @@ registros estão na aba Actions.
 
 A documentação das demais frentes será incorporada conforme suas validações
 forem concluídas; o acompanhamento da entrega está em
-[`docs/entrega.md`](docs/entrega.md).
 
 ---
+
+## ☁️ Arquitetura em nuvem (proposta)
+
+> **Proposta, não implantada.** Nenhum recurso foi criado na nuvem e nenhuma medição foi
+> feita fora do ambiente local.
+
+**Provedor: GCP.** A API stateless de um contêiner roda no **Cloud Run** sem cluster,
+as métricas Prometheus seguem para o **Managed Service for Prometheus**, que responde
+PromQL e mantém as consultas do dashboard, e o GitHub Actions autentica por **Workload
+Identity Federation**, sem chave estática. O ponto menos direto é o Grafana, que não tem
+serviço gerenciado de primeira classe no GCP: a proposta o executa como serviço Cloud Run
+próprio, com o mesmo dashboard provisionado em arquivo.
+
+| Componente | GCP (proposto) |
+| :--- | :--- |
+| API | Cloud Run, `min-instances=1`, 1 processo `uvicorn` |
+| Imagens | Artifact Registry |
+| Airflow | Uma VM do Compute Engine com o mesmo `compose.airflow.yaml` |
+| Artefatos do modelo | Cloud Storage com versionamento |
+| Métricas | Sidecar do Managed Service for Prometheus → Grafana no Cloud Run, atrás do IAP |
+
+A inferência é em tempo real, justificada pelas latências medidas localmente: p50 de
+2,47–2,48 ms no cliente e p95 de 2,91 ms no painel sob a stack completa.
+
+**Justificativa completa, dimensionamento, segurança e o que muda em relação ao local:**
+[`docs/architecture.md` §13 — Arquitetura em Nuvem (proposta)](docs/architecture.md#13-arquitetura-em-nuvem-proposta).
 
 ## 📐 Arquitetura e padrões
 
@@ -995,7 +1024,7 @@ A contagem de testes não é fixada neste README, pois evolui a cada feature.
 
 ## 🗺️ Etapas do Projeto
 
-O acompanhamento da rubrica e os checkpoints datados ficam em [`docs/entrega.md`](docs/entrega.md). O Airflow, a exportação ONNX com benchmark, a baseline de latência HTTP da API e a observabilidade (instrumentação Prometheus e dashboard Grafana) estão implementados. Os próximos blocos são servir ONNX na API e documentar a arquitetura Cloud.
+O Airflow, a exportação ONNX com benchmark, a baseline de latência HTTP da API, a observabilidade (instrumentação Prometheus e dashboard Grafana) e a arquitetura em nuvem proposta estão documentados. Falta a apresentação em vídeo.
 
 ### ✅ Dataset e carregamento
 
@@ -1357,5 +1386,7 @@ backends no HTTP e documentar a arquitetura em nuvem.
     -   [x] Aquecimento descartado e validação de respostas
     -   [x] Percentis compartilhados com o benchmark ONNX
     -   [x] Buckets do Histogram propostos a partir da faixa medida
+-   [x] Arquitetura em nuvem documentada
+-   [ ] Vídeo STAR
 -   [ ] Documentação e resultados finais
 
