@@ -394,23 +394,178 @@ Esses serviços deverão posteriormente ser executados de forma integrada utiliz
 
 ---
 
-## 13. Estratégia de Deploy
+## 13. Arquitetura em Nuvem (proposta)
 
-O cenário do projeto é mais adequado para inferência em tempo real.
+### 13.1 Status
 
-Uma solicitação recebida deve ser classificada imediatamente para permitir seu encaminhamento para o fluxo correspondente.
+> **Arquitetura proposta, não implantada.** Nenhum recurso foi criado no GCP, nenhum
+> custo foi levantado e nenhuma medição foi feita em ambiente de nuvem. Todos os números
+> desta seção vêm das medições locais documentadas no repositório, com a fonte indicada.
+> O que foi implementado e validado roda localmente com Docker Compose (§12).
 
-Portanto, a estratégia arquitetural inicial considera:
+### 13.2 Provedor: Google Cloud Platform
 
-```text
-Real-time inference
-```
+O provedor é o **GCP**. A escolha decorre das restrições concretas deste projeto:
 
-como abordagem principal.
+| Restrição do projeto | Como o GCP atende |
+| :--- | :--- |
+| API stateless em **um único contêiner**, já empacotada pelo `Dockerfile` | **Cloud Run** executa o contêiner como serviço gerenciado, sem cluster para administrar e sem alterar a imagem |
+| Métricas no formato Prometheus, consultas PromQL versionadas em `monitoring/grafana/dashboards/api.json` | **Google Cloud Managed Service for Prometheus** recebe métricas no formato Prometheus e responde PromQL; as consultas dos painéis continuam válidas |
+| CI no GitHub Actions publicando a imagem | **Artifact Registry** armazena a mesma imagem; **Workload Identity Federation** autentica o GitHub Actions sem chave de service account estática |
+| Segredo local em `.env` (`AIRFLOW_JWT_SECRET`) | **Secret Manager** substitui o `.env` |
+| Artefatos do modelo pequenos e versionados por execução | **Cloud Storage** com versionamento de objetos |
 
-A primeira versão do projeto será executada localmente.
+**Onde a plataforma é menos direta: o Grafana.** O GCP não oferece Grafana gerenciado de
+primeira classe, como a AWS oferece com o Amazon Managed Grafana. A proposta resolve isso
+assim:
 
-Uma arquitetura de deploy em nuvem será detalhada posteriormente no projeto, após a implementação e validação dos componentes principais.
+- **Grafana OSS em um serviço Cloud Run próprio**, com a mesma imagem fixada no local
+  (`grafana/grafana:13.0.1`) e o mesmo provisionamento em arquivo (datasource com `uid`
+  fixo e dashboard `api.json`). Como no local, o estado do Grafana é descartável
+  (`allowUiUpdates: false`): tudo o que importa está versionado, então não há banco do
+  Grafana para operar.
+- **O datasource aponta para a API de consulta PromQL do Managed Service for Prometheus.**
+  Essa API exige um token OAuth de curta duração. O Google fornece um *datasource syncer*,
+  executado periodicamente, que renova o token no datasource do Grafana.
+- **Custo dessa escolha:** um serviço a mais para operar, a atualização da imagem do
+  Grafana sob responsabilidade do projeto e a dependência do syncer. Se o token expirar
+  sem renovação, os painéis param de exibir dados, mas a coleta continua. A alternativa
+  nativa, os dashboards do Cloud Monitoring com PromQL, abriria mão do dashboard
+  versionado já validado, e por isso não foi adotada.
+
+### 13.3 Mapeamento componente a componente
+
+| Componente | Local (implementado) | GCP (proposto) |
+| :--- | :--- | :--- |
+| API FastAPI | Contêiner do `Dockerfile` no Docker Compose, porta 8000 | **Cloud Run**, região `southamerica-east1` (São Paulo), a mesma imagem |
+| Registry de imagens | Imagem construída localmente; o CI apenas a constrói (`docker-build`) | **Artifact Registry** (repositório Docker na mesma região) |
+| Apache Airflow | `compose.airflow.yaml`: Airflow 3.1.0, `LocalExecutor`, PostgreSQL 16 | **Uma VM do Compute Engine** com o mesmo `compose.airflow.yaml`, PostgreSQL em disco persistente, ligada sob demanda para a execução manual da DAG |
+| Artefatos do modelo | `artifacts/` no host, copiados pelo `publish` e embutidos na imagem no build | **Bucket do Cloud Storage** com versionamento de objetos; o `publish` grava no bucket, e o build da imagem lê do bucket |
+| Coleta de métricas | Prometheus raspa `api:8000/metrics` a cada 5 s | **Sidecar coletor do Managed Service for Prometheus** na própria instância do Cloud Run, raspando `localhost:8000/metrics` |
+| Destino das métricas | Série temporal no contêiner do Prometheus, sem volume persistente | **Managed Service for Prometheus** (armazenamento do Cloud Monitoring) |
+| Visualização | Grafana no Compose, porta 3000, leitura anônima | **Grafana OSS no Cloud Run**, atrás do IAP, sem acesso anônimo |
+
+Pontos do mapeamento:
+
+- **Por que o scrape muda.** No Compose, o Prometheus alcança a API pelo nome do serviço.
+  No Cloud Run, as instâncias não têm endereço individual alcançável de fora, e um
+  Prometheus externo só enxergaria o balanceador. Com o sidecar, cada instância exporta as
+  próprias métricas. Isso também combina com a decisão de usar o registry padrão do
+  `prometheus_client` em processo único (`prometheus-instrumentation.md`, "Decisões de
+  desenho"): cada instância tem um processo, e o Managed Prometheus agrega as séries.
+- **Por que uma VM e não o Cloud Composer.** O Cloud Composer é o Airflow gerenciado do GCP,
+  mas provisiona um cluster GKE por baixo. Para uma DAG de três tarefas
+  (`ingest → train → publish`) acionada manualmente, isso é sobredimensionado e esbarra na
+  restrição de não usar cluster gerenciado. A VM reaproveita a estrutura de serviços do
+  `compose.airflow.yaml` validado em 22/10/2026. Mudam só a origem do segredo (Secret
+  Manager em vez de `.env`) e o destino dos artefatos (bucket em vez do volume
+  `./artifacts`).
+- **Por que os artefatos continuam embutidos na imagem.** O modelo validado localmente é o
+  da imagem. Manter o artefato dentro dela faz cada imagem corresponder a uma única versão
+  do modelo e mantém a API sem acesso ao bucket em tempo de execução. O que muda é a
+  origem: o build lê do bucket em vez de `./artifacts`.
+
+### 13.4 Tempo real versus batch
+
+A inferência é **em tempo real, síncrona, por requisição**. Uma mensagem precisa ser
+classificada no momento em que chega, porque o encaminhamento ao fluxo de atendimento
+depende da intenção. As medições locais mostram que a inferência não é o gargalo que
+justificaria acumular mensagens em lote:
+
+| Medição | Valor | Fonte |
+| :--- | :--- | :--- |
+| Latência p50 de `POST /predict`, vista pelo cliente | 2,47–2,48 ms | [`http-latency-baseline.md`](http-latency-baseline.md), "Estado confirmado em 26/10/2026" |
+| Média de latência do lado servidor (`_sum / _count`) | 1,80–1,92 ms | [`prometheus-instrumentation.md`](prometheus-instrumentation.md), "Calibração dos buckets" |
+| Latência p95 exibida no Grafana sob a stack completa | 2,91 ms | [`operacao-monitoramento.md`](operacao-monitoramento.md), "Estado confirmado em 26/10/2026" |
+| Throughput em lote × individual, modelo isolado | Mesma ordem de grandeza | [`onnx-benchmark.md`](onnx-benchmark.md), "Estado confirmado em 24/10/2026" |
+
+O raciocínio:
+
+- **Uma classificação custa poucos milissegundos.** Um processamento em lote só se paga
+  quando o custo por item cai muito ao agrupar. Aqui, o ganho medido de agrupar ficou na
+  mesma ordem de grandeza, e o lote acrescentaria a espera da fila, de segundos a minutos,
+  a uma operação que leva milissegundos.
+- **Batch não tem consumidor neste cenário.** Não há relatório nem reprocessamento
+  periódico que use as intenções em massa. O consumidor é o roteamento, que é síncrono.
+- **Limitação das medições.** Os números foram medidos no Docker Desktop no macOS Intel,
+  com 1 cliente sequencial. A própria baseline registra que eles **não se transferem
+  automaticamente para a nuvem** (`http-latency-baseline.md`, "Interpretação e
+  limitações"). Eles justificam a ordem de grandeza da decisão, não um SLA no GCP. A
+  latência em nuvem teria de ser medida após um deploy, que não foi feito.
+- **Consequência para o Cloud Run.** Como a inferência dura milissegundos, uma subida de
+  instância a frio dominaria a latência da primeira requisição. Por isso a proposta mantém
+  `min-instances=1`. O tempo de cold start desta imagem não foi medido.
+
+### 13.5 Dimensionamento
+
+A proposta é dimensionada para a carga deste projeto, uma API stateless com modelo
+TF-IDF + Logistic Regression de 1.479.476 bytes (`onnx-benchmark.md`):
+
+| Serviço | Configuração proposta | Justificativa |
+| :--- | :--- | :--- |
+| API (Cloud Run) | 1 vCPU, 1 processo `uvicorn`, `min-instances=1`, `max-instances` baixo (poucas instâncias) | Um processo por contêiner, como no local, o que mantém válido o registry Prometheus de processo único. O teto baixo limita custo e impacto de erro. A memória deve ser definida medindo o contêiner, o que não foi feito neste projeto |
+| Grafana (Cloud Run) | Uma instância, sem réplica | Uso de leitura ocasional, estado descartável |
+| Airflow (Compute Engine) | Uma VM, ligada só para as execuções | Uma DAG manual com `LocalExecutor`; não há fila nem execução contínua |
+| Cloud Storage / Artifact Registry | Um bucket, um repositório | Poucos artefatos e imagens, de tamanho na casa dos megabytes |
+
+**Não são propostos Kubernetes, GKE nem qualquer cluster gerenciado.** Com uma API de um
+contêiner, um cluster acrescentaria operação sem atender a nenhuma necessidade medida.
+
+**O que não se sabe sobre capacidade.** O throughput de 387,2–391,4 req/s da baseline foi
+medido com 1 cliente sequencial e é o inverso da latência, não a capacidade da API
+(`http-latency-baseline.md`, "O que elas não sustentam"). O escalonamento sob concorrência
+não foi medido, e o `max-instances` deve ser ajustado por um teste de carga concorrente
+feito no próprio Cloud Run.
+
+### 13.6 Segurança
+
+**Segredos.**
+
+- `AIRFLOW_JWT_SECRET` e a senha de administrador do Grafana ficam no **Secret Manager**.
+  Na nuvem não existe `.env`.
+- A VM do Airflow lê o segredo pela própria identidade. No Cloud Run, o Grafana recebe a
+  senha como segredo montado.
+- A credencial padrão `admin`/`admin` do Grafana local não é usada.
+
+**Identidade.** Uma service account por serviço, com privilégio mínimo:
+
+| Identidade | Permissões |
+| :--- | :--- |
+| API (Cloud Run) | `roles/monitoring.metricWriter`, só para o sidecar exportar métricas. Sem acesso ao bucket, porque o modelo está na imagem |
+| Grafana (Cloud Run) | `roles/monitoring.viewer`, leitura de métricas, e acesso ao seu segredo |
+| Airflow (VM) | Escrita apenas no bucket de artefatos e acesso ao seu segredo |
+| GitHub Actions (via Workload Identity Federation) | Escrita no Artifact Registry e deploy no Cloud Run, restritas ao repositório e à branch `main` |
+
+Nenhuma chave JSON de service account é gerada nem armazenada no GitHub.
+
+**Rede.**
+
+- **API:** sem invocação anônima, só identidades com `roles/run.invoker`, e ingress
+  restrito ao tráfego interno do projeto. Isso também protege `/metrics`, que fica na mesma
+  porta do `/predict`: o sidecar coleta por `localhost`, dentro da instância, e não depende
+  de exposição externa.
+- **Grafana:** atrás do Identity-Aware Proxy (IAP), com o acesso anônimo de leitura do
+  setup local desligado (`operacao-monitoramento.md`, "Segurança").
+- **VM do Airflow:** sem IP público. A interface é acessada por túnel IAP, e a saída para
+  o Hugging Face Hub, necessária ao `ingest`, passa pelo Cloud NAT.
+
+### 13.7 O que muda e o que permanece em relação ao setup local
+
+| Permanece | Muda |
+| :--- | :--- |
+| `Dockerfile` e imagem da API | Origem dos artefatos no build: bucket em vez de `./artifacts` |
+| Camadas de domínio, aplicação e apresentação, sem alteração | Infraestrutura: um destino de publicação no Cloud Storage para o `publish`, em vez da cópia para `artifacts/` |
+| Instrumentação da API (middleware e `/metrics`), sem alteração | Coleta: sidecar raspando `localhost:8000` em vez de Prometheus raspando `api:8000` |
+| Métricas `http_requests_total` e `http_request_duration_seconds`, com os mesmos buckets | Armazenamento das métricas: Managed Service for Prometheus em vez do contêiner do Prometheus |
+| Dashboard `api.json` e consultas PromQL dos três painéis | Grafana: acesso anônimo desligado, autenticação via IAP e token do datasource renovado pelo syncer |
+| DAG `ingest → train → publish` e estrutura de serviços do `compose.airflow.yaml` (`LocalExecutor`, PostgreSQL) | `compose.airflow.yaml`: segredo lido do Secret Manager em vez do `.env`, e o volume `./artifacts` deixa de ser o destino; o `publish` grava no bucket versionado em vez de fazer a cópia não atômica para `artifacts/` |
+| CI com `lint`, `tests`, `docker-build` e `validate-gitflow` | Segredos: Secret Manager em vez de `.env`. Entrada de rede: ingress restrito e IAP em vez de `localhost` |
+
+### 13.8 Fora desta proposta
+
+Não fazem parte desta entrega e não foram feitos: o job de CD que publicaria a imagem e
+faria o deploy, a infraestrutura como código, o levantamento de custos, o teste de carga
+concorrente e qualquer medição em ambiente de nuvem.
 
 ---
 
