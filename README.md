@@ -1024,7 +1024,7 @@ A contagem de testes não é fixada neste README, pois evolui a cada feature.
 
 ## 🗺️ Etapas do Projeto
 
-O Airflow, a exportação ONNX com benchmark, a baseline de latência HTTP da API, a observabilidade (instrumentação Prometheus e dashboard Grafana) e a arquitetura em nuvem proposta estão documentados. Falta a apresentação em vídeo.
+O Airflow, a exportação ONNX com benchmark, a baseline de latência HTTP da API, a observabilidade (instrumentação Prometheus e dashboard Grafana) e a arquitetura em nuvem proposta estão documentados. A apresentação em vídeo foi gravada e entregue junto com este repositório.
 
 ### ✅ Dataset e carregamento
 
@@ -1307,9 +1307,13 @@ BANKING77 (13.083 mensagens; 77 classes)
     │     └── p99: 3,71–4,31 ms
     ├── Instrumentação Prometheus (/metrics)   ✅
     │     └── Buckets calibrados no servidor (média 1,80–1,92 ms)
-    └── Stack Prometheus + Grafana             ✅
-          ├── Target api:8000 UP (scrape 5 s)
-          └── 3 painéis: taxa, p95 e erro 5xx
+    ├── Stack Prometheus + Grafana             ✅
+    │     ├── Target api:8000 UP (scrape 5 s)
+    │     └── 3 painéis: taxa, p95 e erro 5xx
+    └── Arquitetura em nuvem no GCP (proposta) ✅
+          ├── Cloud Run, Artifact Registry, Cloud Storage
+          ├── Managed Prometheus com coletor sidecar
+          └── Não implantada — §13.8 lista o que ficou fora
 ```
 
 A containerização da API foi validada com uma inferência real no Docker.
@@ -1324,8 +1328,13 @@ entregável da Etapa 1 e a referência para calibrar a instrumentação. No
 mesmo dia, a API foi instrumentada com Prometheus, e a stack com Prometheus
 e Grafana provisionado foi validada com carga real.
 
-As próximas etapas planejadas são servir o modelo ONNX na API, comparar os
-backends no HTTP e documentar a arquitetura em nuvem.
+Em 29/10/2026, a arquitetura em nuvem foi documentada como proposta no GCP,
+com provedor justificado, mapeamento componente a componente e registro
+explícito do que ficou fora. Com isso, as frentes técnicas da fase estão
+concluídas.
+
+Servir o modelo ONNX na API e comparar os backends no HTTP ficaram
+registrados como trabalho futuro, fora do escopo desta entrega.
 
 ### 📋 Roadmap
 
@@ -1387,6 +1396,6 @@ backends no HTTP e documentar a arquitetura em nuvem.
     -   [x] Percentis compartilhados com o benchmark ONNX
     -   [x] Buckets do Histogram propostos a partir da faixa medida
 -   [x] Arquitetura em nuvem documentada
--   [ ] Vídeo STAR
--   [ ] Documentação e resultados finais
+-   [x] Apresentação em vídeo pelo método STAR
+-   [x] Documentação e resultados finais
 

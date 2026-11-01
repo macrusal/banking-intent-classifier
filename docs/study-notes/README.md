@@ -93,7 +93,7 @@ uv run pytest
 
 **Evidência observada:** execução manual em 22/10/2026, três tarefas em `success`, uma tentativa por tarefa e duração total de aproximadamente 30 segundos. **Pendente:** conferir e registrar as métricas e os horários de atualização dos artefatos dessa execução; a existência prévia de `artifacts/` não é evidência suficiente. A última suíte informada continha **36 testes aprovados**, mas deve ser repetida antes do commit.
 
-Para explicações técnicas, incidentes, comandos de diagnóstico e estado da rubrica, consultar a [seção operacional do README geral](../../README.md#-execução-airflow-e-decisões-arquiteturais--checkpoint-23102026) e a [nota 18](airflow-training-pipeline.md). O registro de 21/10 permanece histórico e não representa o status atual.
+Para explicações técnicas, incidentes, comandos de diagnóstico e reprodução, consultar [`operacao-airflow.md`](../operacao-airflow.md), a [seção do pipeline Airflow no README geral](../../README.md#-pipeline-apache-airflow) e a [nota 18](airflow-training-pipeline.md). O registro de 21/10 permanece histórico e não representa o status atual.
 
 
 ## Checkpoint — 26/10/2026: baseline de latência HTTP
@@ -180,9 +180,8 @@ uv run --frozen --group onnx pytest
 uv run --frozen pytest tests/test_monitoring_config.py -v
 ```
 
-**Pendente:**
-- vídeo STAR ([roteiro](../roteiro-video-star.md)).
-
 A geração de carga é feita pelo `http_latency_benchmark`. A arquitetura em nuvem está documentada como proposta na [§13 de `architecture.md`](../architecture.md#13-arquitetura-em-nuvem-proposta). Servir ONNX na API fica como trabalho futuro, fora do escopo desta entrega.
+
+Com a arquitetura em nuvem documentada e a apresentação em vídeo gravada, as frentes da Fase 3 estão concluídas. Não há pendências abertas.
 
 Detalhes em [`operacao-monitoramento.md`](../operacao-monitoramento.md) e na [nota 21](21-observabilidade-prometheus-grafana.md).
